@@ -44,6 +44,8 @@ describe("composeReport", () => {
     expect(report).toContain("### Next steps");
     expect(report).not.toContain("- [ ]");
     expect(report).toContain("<details>");
+    expect(report).toContain("Source / ID");
+    expect(report).toContain("`issue.reproduction.missing`");
     expect(report).toContain("Suggested next step");
     expect(report).toContain("`needs-info`");
   });
@@ -94,6 +96,23 @@ describe("composeReport", () => {
 
     expect(report).not.toContain(secret);
     expect(report).toContain("[redacted]");
+  });
+
+  it("escapes finding IDs inside the details table", () => {
+    const findings: Finding[] = [
+      {
+        id: "ai.bad`id|value",
+        severity: "notice",
+        title: "AI finding",
+        details: "Needs a maintainer look.",
+        source: "ai"
+      }
+    ];
+    const summary = createReviewSummary(subject, findings, defaultConfig);
+
+    const report = composeReport(subject, findings, defaultConfig, summary);
+
+    expect(report).toContain("ai<br>`ai.bad'id\\|value`");
   });
 });
 

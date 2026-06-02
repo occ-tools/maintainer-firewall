@@ -7,7 +7,10 @@ const MAX_ANNOTATION_MESSAGE_CHARACTERS = 1000;
 
 export function emitFindingAnnotations(findings: Finding[], config: FirewallConfig): void {
   for (const finding of findings.map((item) => redactFinding(item, config.security.secretPatterns))) {
-    const title = truncateSingleLine(`Maintainer Firewall: ${finding.title}`, MAX_ANNOTATION_TITLE_CHARACTERS);
+    const title = truncateSingleLine(
+      `Maintainer Firewall: ${finding.title} (${finding.id})`,
+      MAX_ANNOTATION_TITLE_CHARACTERS
+    );
     const message = truncateSingleLine(annotationMessage(finding), MAX_ANNOTATION_MESSAGE_CHARACTERS);
     const properties = { title };
 
@@ -27,7 +30,7 @@ export function emitFindingAnnotations(findings: Finding[], config: FirewallConf
 
 function annotationMessage(finding: Finding): string {
   const parts = [
-    `${finding.title}: ${finding.details}`,
+    `[${finding.id}] ${finding.title}: ${finding.details}`,
     finding.suggestion ? `Suggested next step: ${finding.suggestion}` : undefined
   ];
 

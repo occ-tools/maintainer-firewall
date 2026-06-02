@@ -15,7 +15,7 @@ describe("redactByPatterns", () => {
 
   it("redacts finding fields", () => {
     const finding: Finding = {
-      id: "ai.secret",
+      id: "ai.secret.sk-abc12345678901234567890",
       severity: "warning",
       title: "Token sk-abc12345678901234567890",
       details: "Details mention sk-abc12345678901234567890",
@@ -26,6 +26,7 @@ describe("redactByPatterns", () => {
 
     expect(redactFinding(finding, ["\\bsk-[A-Za-z0-9_-]{20,}\\b"])).toEqual({
       ...finding,
+      id: "ai.secret.[redacted]",
       title: "Token [redacted]",
       details: "Details mention [redacted]",
       suggestion: "Rotate [redacted]"

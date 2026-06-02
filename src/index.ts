@@ -19,6 +19,7 @@ import { staleManagedLabels } from "./labels.js";
 import { createReportPayload, writeReportJson } from "./report.js";
 import { createReviewSummary } from "./review.js";
 import { analyzeSubject } from "./rules.js";
+import { composeSetupSummary, composeStepSummary } from "./setup-summary.js";
 import { applyLabels, buildSubject, getConfigRef, hasReportComment, removeLabels, upsertComment } from "./github-client.js";
 import type { Finding, ReviewSummary } from "./types.js";
 
@@ -47,10 +48,20 @@ async function run(): Promise<void> {
     const skipReason = `event ${github.context.eventName} is not handled`;
     setSkippedOutputs(skipReason, reportJsonPath);
     const skippedReport = composeSkippedReport(null, skipReason, config);
+    const setupSummary = composeSetupSummary({
+      config,
+      configPath,
+      dryRun,
+      emitAnnotations,
+      failOnFindings,
+      openAiApiKeyProvided: Boolean(openAiApiKey),
+      reportJsonPath,
+      subjectKind: null
+    });
     core.info(skippedReport);
     if (writeStepSummary) {
       await tryWrite("write step summary", async () => {
-        await core.summary.addRaw(skippedReport, true).write();
+        await core.summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
       });
     }
 
@@ -67,10 +78,20 @@ async function run(): Promise<void> {
   if (skipReason) {
     setSkippedOutputs(skipReason, reportJsonPath);
     const skippedReport = composeSkippedReport(subject, skipReason, config);
+    const setupSummary = composeSetupSummary({
+      config,
+      configPath,
+      dryRun,
+      emitAnnotations,
+      failOnFindings,
+      openAiApiKeyProvided: Boolean(openAiApiKey),
+      reportJsonPath,
+      subjectKind: subject.kind
+    });
     core.info(skippedReport);
     if (writeStepSummary) {
       await tryWrite("write step summary", async () => {
-        await core.summary.addRaw(skippedReport, true).write();
+        await core.summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
       });
     }
 
@@ -126,6 +147,16 @@ async function run(): Promise<void> {
     : [];
   const summary = createReviewSummary(subject, findings, config, routingHints);
   const report = composeReport(subject, findings, config, summary);
+  const setupSummary = composeSetupSummary({
+    config,
+    configPath,
+    dryRun,
+    emitAnnotations,
+    failOnFindings,
+    openAiApiKeyProvided: Boolean(openAiApiKey),
+    reportJsonPath,
+    subjectKind: subject.kind
+  });
 
   setCompletedOutputs(summary, findings, reportJsonPath);
   if (emitAnnotations) {
@@ -135,7 +166,7 @@ async function run(): Promise<void> {
   core.info(report);
   if (writeStepSummary) {
     await tryWrite("write step summary", async () => {
-      await core.summary.addRaw(report, true).write();
+      await core.summary.addRaw(composeStepSummary(setupSummary, report), true).write();
     });
   }
 

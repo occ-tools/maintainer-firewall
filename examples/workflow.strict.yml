@@ -1,15 +1,15 @@
-name: Maintainer Firewall Dry Run
+name: Maintainer Firewall Strict
 
 on:
   issues:
     types: [opened, edited, reopened, labeled, unlabeled]
-  pull_request:
+  pull_request_target:
     types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 permissions:
   contents: read
-  issues: read
-  pull-requests: read
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: maintainer-firewall-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
@@ -22,4 +22,5 @@ jobs:
       - uses: wangjiehu/maintainer-firewall@v0.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          dry-run: true
+          emit-annotations: true
+          fail-on-findings: true

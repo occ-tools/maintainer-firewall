@@ -4,19 +4,30 @@ Maintainer Firewall is a GitHub Action for open-source maintainers who need a ca
 
 It does not try to prove whether a contribution was AI-generated. Instead, it asks the question maintainers actually care about: is this contribution actionable and maintainable?
 
+## Documentation map
+
+- [Installation](docs/INSTALLATION.md): first install, permissions, fork PR safety, and first-run checklist.
+- [Rollout Playbook](docs/ROLLOUT_PLAYBOOK.md): audit, advisory, collaborative, and strict rollout modes.
+- [Rules](docs/RULES.md): finding IDs, trigger conditions, labels, severities, and tuning knobs.
+- [Troubleshooting](docs/TROUBLESHOOTING.md): common setup, permission, AI, comment, label, and release issues.
+- [Architecture](docs/ARCHITECTURE.md): internal flow and safety model.
+
+Use Maintainer Firewall when you want advisory triage help. Do not use it as an AI-detector, automatic rejection system, or replacement for maintainer judgment.
+
 ## Product behavior
 
 Each run produces a compact review-readiness report:
 
 - An outcome such as `Needs contributor info`, `Needs tests`, or `Ready for maintainer review`
 - A 0-100 review-readiness score
+- Stable finding IDs for tuning and troubleshooting
 - A short maintainer-facing headline
 - Contributor-friendly next steps
 - A collapsible finding table
 - Optional labels
 - Optional passing checks, so good contributions do not look like a silent no-op
 
-The default mode is intentionally low-noise: it writes a comment only when there are findings. Workflow outputs are always set, so teams can build custom checks or dashboards without adding comments to clean issues and PRs.
+The default mode is intentionally low-noise: it writes a comment only when there are findings. Workflow outputs are always set, so teams can build custom checks or dashboards without adding comments to clean issues and PRs. The Actions step summary also includes a setup table showing the active config path, dry-run state, comments, labels, annotations, JSON report, AI status, and failure policy.
 
 ## What it checks
 
@@ -39,6 +50,8 @@ This repository dogfoods Maintainer Firewall on its own issues and pull requests
 
 ## Quick start
 
+For the first run, start in audit mode. It is read-only and writes the report to the Actions step summary without posting comments or labels.
+
 Create `.github/workflows/maintainer-firewall.yml`:
 
 ```yaml
@@ -46,14 +59,14 @@ name: Maintainer Firewall
 
 on:
   issues:
-    types: [opened, edited, reopened, labeled, unlabeled]
-  pull_request_target:
-    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    types: [opened, edited, reopened]
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: maintainer-firewall-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
@@ -63,13 +76,16 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.2.0
+      - uses: wangjiehu/maintainer-firewall@v0.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: true
 ```
 
 Add `.maintainer-firewall.yml` to customize thresholds, labels, and optional AI analysis.
 Unsupported keys, invalid value shapes, invalid `comment.postWhen` values, and below-minimum numeric settings fall back to safe defaults and emit workflow warnings, so a malformed config does not break triage.
+
+After the first run, inspect the setup table in the step summary. Move to advisory or collaborative mode only after the findings and suggested labels match your expectations. See [Installation](docs/INSTALLATION.md) and [Rollout Playbook](docs/ROLLOUT_PLAYBOOK.md).
 
 Use `pull_request_target` when you want the action to comment on pull requests from forks. Maintainer Firewall does not check out pull request code, and it loads configuration from the base ref. If you add checkout or custom scripts to the same job, do not run untrusted pull request code with write permissions.
 
@@ -79,7 +95,7 @@ The `labeled` and `unlabeled` events let ignore labels such as `skip-firewall` a
 Set `report-json-path` when another workflow step should consume a structured report:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.2.0
+      - uses: wangjiehu/maintainer-firewall@v0.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           report-json-path: maintainer-firewall-report.json
@@ -91,9 +107,9 @@ Use the smallest permissions that match the rollout mode:
 
 | Mode | Event | Permissions |
 | --- | --- | --- |
-| Dry run | `pull_request` | `contents: read`, `issues: read`, `pull-requests: read` |
-| Comment and label PRs from forks | `pull_request_target` | `contents: read`, `issues: write`, `pull-requests: write` |
-| Internal-only PRs | `pull_request` | `contents: read`, `issues: write`, `pull-requests: write` |
+| Audit | `pull_request` | `contents: read`, `issues: read`, `pull-requests: read` |
+| Advisory | `pull_request_target` | `contents: read`, `issues: write`, `pull-requests: write` |
+| Collaborative or strict | `pull_request_target` | `contents: read`, `issues: write`, `pull-requests: write` |
 
 Do not combine `pull_request_target`, write permissions, and a checkout of untrusted pull request code in the same job.
 
@@ -102,7 +118,7 @@ Do not combine `pull_request_target`, write permissions, and a checkout of untru
 Maintainer Firewall works without an OpenAI API key. To enable AI-assisted semantic checks, set `ai.enabled: true` in `.maintainer-firewall.yml` and pass an API key:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.2.0
+      - uses: wangjiehu/maintainer-firewall@v0.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -117,7 +133,7 @@ When AI analysis is enabled, Maintainer Firewall also loads configured repositor
 Start in dry-run mode if you want to inspect reports without writing comments or labels:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.2.0
+      - uses: wangjiehu/maintainer-firewall@v0.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -281,6 +297,7 @@ ai:
 ```
 
 See [`examples/config.quiet.yml`](examples/config.quiet.yml) for a gentle rollout preset and [`examples/config.strict.yml`](examples/config.strict.yml) for stricter projects.
+See [Rules](docs/RULES.md) for finding IDs, default severities, labels, and tuning knobs.
 
 ## Local development
 
@@ -301,8 +318,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internal flow and saf
 ```bash
 npm run check
 npm run verify:dist
-git tag v0.2.0
-git push origin main v0.2.0
+git tag v0.3.0
+git push origin main v0.3.0
 ```
 
 The release workflow publishes GitHub release notes for `v*` tags.

@@ -1,10 +1,10 @@
-name: Maintainer Firewall Dry Run
+name: Maintainer Firewall Audit
 
 on:
   issues:
-    types: [opened, edited, reopened, labeled, unlabeled]
+    types: [opened, edited, reopened]
   pull_request:
-    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read

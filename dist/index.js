@@ -45047,6 +45047,7 @@ function redactByPatterns(value, patterns, replacement = "[redacted]") {
 function redactFinding(finding, patterns) {
     return {
         ...finding,
+        id: redactByPatterns(finding.id, patterns),
         title: redactByPatterns(finding.title, patterns),
         details: redactByPatterns(finding.details, patterns),
         suggestion: finding.suggestion ? redactByPatterns(finding.suggestion, patterns) : undefined
@@ -45308,7 +45309,7 @@ const MAX_ANNOTATION_TITLE_CHARACTERS = 255;
 const MAX_ANNOTATION_MESSAGE_CHARACTERS = 1000;
 function emitFindingAnnotations(findings, config) {
     for (const finding of findings.map((item) => redactFinding(item, config.security.secretPatterns))) {
-        const title = truncateSingleLine(`Maintainer Firewall: ${finding.title}`, MAX_ANNOTATION_TITLE_CHARACTERS);
+        const title = truncateSingleLine(`Maintainer Firewall: ${finding.title} (${finding.id})`, MAX_ANNOTATION_TITLE_CHARACTERS);
         const message = truncateSingleLine(annotationMessage(finding), MAX_ANNOTATION_MESSAGE_CHARACTERS);
         const properties = { title };
         if (finding.severity === "error") {
@@ -45324,7 +45325,7 @@ function emitFindingAnnotations(findings, config) {
 }
 function annotationMessage(finding) {
     const parts = [
-        `${finding.title}: ${finding.details}`,
+        `[${finding.id}] ${finding.title}: ${finding.details}`,
         finding.suggestion ? `Suggested next step: ${finding.suggestion}` : undefined
     ];
     return parts.filter(Boolean).join(" ");
@@ -48128,13 +48129,13 @@ function composeReport(subject, findings, config, summary) {
     lines.push("<details>");
     lines.push(`<summary>${safeFindings.length} finding${safeFindings.length === 1 ? "" : "s"} from enabled checks</summary>`);
     lines.push("");
-    lines.push("| Severity | Source | Finding | Suggested next step |");
+    lines.push("| Severity | Source / ID | Finding | Suggested next step |");
     lines.push("| --- | --- | --- | --- |");
     for (const finding of visibleFindings) {
-        lines.push(`| ${finding.severity} | ${finding.source} | ${escapeTable(`${finding.title}: ${finding.details}`)} | ${escapeTable(finding.suggestion ?? "Review manually.")} |`);
+        lines.push(`| ${finding.severity} | ${finding.source}<br>\`${escapeInlineCode(escapeTable(finding.id))}\` | ${escapeTable(`${finding.title}: ${finding.details}`)} | ${escapeTable(finding.suggestion ?? "Review manually.")} |`);
     }
     if (hiddenFindingCount > 0) {
-        lines.push(`| notice | rule | ${hiddenFindingCount} additional finding${hiddenFindingCount === 1 ? "" : "s"} hidden by comment.maxFindings. | Increase comment.maxFindings to show more. |`);
+        lines.push(`| notice | system | ${hiddenFindingCount} additional finding${hiddenFindingCount === 1 ? "" : "s"} hidden by comment.maxFindings. | Increase comment.maxFindings to show more. |`);
     }
     lines.push("");
     lines.push("</details>");
@@ -48191,6 +48192,9 @@ function shouldPostSkippedComment(config, hasExistingReport) {
 }
 function escapeTable(value) {
     return value.replace(/\|/g, "\\|").replace(/\n/g, "<br>");
+}
+function escapeInlineCode(value) {
+    return value.replace(/`/g, "'");
 }
 function appendPassedChecks(lines, config, summary) {
     if (!config.comment.includePassingChecks || summary.passedChecks.length === 0) {
@@ -48876,6 +48880,58 @@ function matchesAnyRegex(value, patterns) {
     });
 }
 
+;// CONCATENATED MODULE: ./src/setup-summary.ts
+function composeSetupSummary(options) {
+    const rows = [
+        ["Subject", options.subjectKind ? subjectLabel(options.subjectKind) : "No handled issue or pull request"],
+        ["Config", options.configPath],
+        ["Run mode", options.dryRun ? "Dry run; no labels, comments, or stale-label removals are written" : "Live writes allowed"],
+        ["Comments", commentState(options.config)],
+        ["Labels", labelState(options.config, options.dryRun)],
+        ["Annotations", options.emitAnnotations ? "Enabled" : "Disabled"],
+        ["JSON report", options.reportJsonPath || "Disabled"],
+        ["AI analysis", aiState(options.config, options.openAiApiKeyProvided)],
+        ["Failure policy", options.failOnFindings ? "Fail on warning or error findings" : "Advisory; workflow does not fail on findings"]
+    ];
+    return [
+        "## Maintainer Firewall setup",
+        "",
+        "| Setting | Active state |",
+        "| --- | --- |",
+        ...rows.map(([setting, state]) => `| ${setup_summary_escapeTable(setting)} | ${setup_summary_escapeTable(state)} |`)
+    ].join("\n");
+}
+function composeStepSummary(setupSummary, report) {
+    return `${setupSummary}\n\n${report}`;
+}
+function subjectLabel(kind) {
+    return kind === "issue" ? "Issue" : "Pull request";
+}
+function commentState(config) {
+    if (!config.comment.enabled || config.comment.postWhen === "never") {
+        return "Disabled";
+    }
+    return `Enabled; postWhen=${config.comment.postWhen}; updateExisting=${String(config.comment.updateExisting)}`;
+}
+function labelState(config, dryRun) {
+    if (!config.labeling.enabled) {
+        return "Disabled";
+    }
+    const state = `Enabled; createMissing=${String(config.labeling.createMissing)}; removeStale=${String(config.labeling.removeStale)}`;
+    return dryRun ? `${state}; writes suppressed by dry-run` : state;
+}
+function aiState(config, openAiApiKeyProvided) {
+    if (!config.ai.enabled) {
+        return "Disabled";
+    }
+    return openAiApiKeyProvided
+        ? `Enabled; model=${config.ai.model}; timeoutMs=${config.ai.timeoutMs}`
+        : "Configured, but no API key was provided";
+}
+function setup_summary_escapeTable(value) {
+    return value.replace(/\|/g, "\\|").replace(/\n/g, " ");
+}
+
 ;// CONCATENATED MODULE: ./src/github-client.ts
 
 
@@ -49149,6 +49205,7 @@ function github_client_getErrorMessage(error) {
 
 
 
+
 async function run() {
     const token = getInput("github-token", { required: true });
     const openAiApiKey = getInput("openai-api-key") || process.env.OPENAI_API_KEY;
@@ -49170,10 +49227,20 @@ async function run() {
         const skipReason = `event ${github_context.eventName} is not handled`;
         setSkippedOutputs(skipReason, reportJsonPath);
         const skippedReport = composeSkippedReport(null, skipReason, config);
+        const setupSummary = composeSetupSummary({
+            config,
+            configPath,
+            dryRun,
+            emitAnnotations,
+            failOnFindings,
+            openAiApiKeyProvided: Boolean(openAiApiKey),
+            reportJsonPath,
+            subjectKind: null
+        });
         info(skippedReport);
         if (writeStepSummary) {
             await tryWrite("write step summary", async () => {
-                await summary_summary.addRaw(skippedReport, true).write();
+                await summary_summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
             });
         }
         if (reportJsonPath) {
@@ -49185,10 +49252,20 @@ async function run() {
     if (skipReason) {
         setSkippedOutputs(skipReason, reportJsonPath);
         const skippedReport = composeSkippedReport(subject, skipReason, config);
+        const setupSummary = composeSetupSummary({
+            config,
+            configPath,
+            dryRun,
+            emitAnnotations,
+            failOnFindings,
+            openAiApiKeyProvided: Boolean(openAiApiKey),
+            reportJsonPath,
+            subjectKind: subject.kind
+        });
         info(skippedReport);
         if (writeStepSummary) {
             await tryWrite("write step summary", async () => {
-                await summary_summary.addRaw(skippedReport, true).write();
+                await summary_summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
             });
         }
         if (reportJsonPath) {
@@ -49228,6 +49305,16 @@ async function run() {
         : [];
     const summary = createReviewSummary(subject, findings, config, routingHints);
     const report = composeReport(subject, findings, config, summary);
+    const setupSummary = composeSetupSummary({
+        config,
+        configPath,
+        dryRun,
+        emitAnnotations,
+        failOnFindings,
+        openAiApiKeyProvided: Boolean(openAiApiKey),
+        reportJsonPath,
+        subjectKind: subject.kind
+    });
     setCompletedOutputs(summary, findings, reportJsonPath);
     if (emitAnnotations) {
         emitFindingAnnotations(findings, config);
@@ -49235,7 +49322,7 @@ async function run() {
     info(report);
     if (writeStepSummary) {
         await tryWrite("write step summary", async () => {
-            await summary_summary.addRaw(report, true).write();
+            await summary_summary.addRaw(composeStepSummary(setupSummary, report), true).write();
         });
     }
     if (!dryRun) {

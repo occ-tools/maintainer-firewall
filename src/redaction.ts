@@ -13,6 +13,7 @@ export function redactByPatterns(value: string, patterns: string[], replacement 
 export function redactFinding(finding: Finding, patterns: string[]): Finding {
   return {
     ...finding,
+    id: redactByPatterns(finding.id, patterns),
     title: redactByPatterns(finding.title, patterns),
     details: redactByPatterns(finding.details, patterns),
     suggestion: finding.suggestion ? redactByPatterns(finding.suggestion, patterns) : undefined

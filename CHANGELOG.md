@@ -2,6 +2,14 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.3.0 - Onboarding and Setup Clarity
+
+- Adds installation, rollout, rules, troubleshooting, and UX improvement planning docs.
+- Adds audit, advisory, collaborative, and strict workflow examples.
+- Adds a setup table to the Actions step summary so first runs show active comments, labels, annotations, JSON, AI, and failure policy.
+- Shows stable finding IDs in report comments and GitHub Actions annotations.
+- Redacts finding IDs alongside titles, details, and suggestions.
+
 ## 0.2.0 - Workflow Annotations
 
 - Adds an `emit-annotations` input for optional GitHub Actions notice, warning, and error annotations for findings.

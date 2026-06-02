@@ -47,17 +47,17 @@ export function composeReport(
   lines.push("<details>");
   lines.push(`<summary>${safeFindings.length} finding${safeFindings.length === 1 ? "" : "s"} from enabled checks</summary>`);
   lines.push("");
-  lines.push("| Severity | Source | Finding | Suggested next step |");
+  lines.push("| Severity | Source / ID | Finding | Suggested next step |");
   lines.push("| --- | --- | --- | --- |");
 
   for (const finding of visibleFindings) {
     lines.push(
-      `| ${finding.severity} | ${finding.source} | ${escapeTable(`${finding.title}: ${finding.details}`)} | ${escapeTable(finding.suggestion ?? "Review manually.")} |`
+      `| ${finding.severity} | ${finding.source}<br>\`${escapeInlineCode(escapeTable(finding.id))}\` | ${escapeTable(`${finding.title}: ${finding.details}`)} | ${escapeTable(finding.suggestion ?? "Review manually.")} |`
     );
   }
 
   if (hiddenFindingCount > 0) {
-    lines.push(`| notice | rule | ${hiddenFindingCount} additional finding${hiddenFindingCount === 1 ? "" : "s"} hidden by comment.maxFindings. | Increase comment.maxFindings to show more. |`);
+    lines.push(`| notice | system | ${hiddenFindingCount} additional finding${hiddenFindingCount === 1 ? "" : "s"} hidden by comment.maxFindings. | Increase comment.maxFindings to show more. |`);
   }
 
   lines.push("");
@@ -131,6 +131,10 @@ export function shouldPostSkippedComment(config: FirewallConfig, hasExistingRepo
 
 function escapeTable(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\n/g, "<br>");
+}
+
+function escapeInlineCode(value: string): string {
+  return value.replace(/`/g, "'");
 }
 
 function appendPassedChecks(lines: string[], config: FirewallConfig, summary: ReviewSummary): void {

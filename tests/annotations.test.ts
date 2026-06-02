@@ -23,16 +23,16 @@ describe("emitFindingAnnotations", () => {
     ], defaultConfig);
 
     expect(core.notice).toHaveBeenCalledWith(
-      "Notice finding: Details for Notice finding Suggested next step: Suggested action.",
-      { title: "Maintainer Firewall: Notice finding" }
+      "[notice.finding] Notice finding: Details for Notice finding Suggested next step: Suggested action.",
+      { title: "Maintainer Firewall: Notice finding (notice.finding)" }
     );
     expect(core.warning).toHaveBeenCalledWith(
-      "Warning finding: Details for Warning finding Suggested next step: Suggested action.",
-      { title: "Maintainer Firewall: Warning finding" }
+      "[warning.finding] Warning finding: Details for Warning finding Suggested next step: Suggested action.",
+      { title: "Maintainer Firewall: Warning finding (warning.finding)" }
     );
     expect(core.error).toHaveBeenCalledWith(
-      "Error finding: Details for Error finding Suggested next step: Suggested action.",
-      { title: "Maintainer Firewall: Error finding" }
+      "[error.finding] Error finding: Details for Error finding Suggested next step: Suggested action.",
+      { title: "Maintainer Firewall: Error finding (error.finding)" }
     );
   });
 
@@ -51,7 +51,7 @@ describe("emitFindingAnnotations", () => {
     expect(message).not.toContain(secret);
     expect(message).not.toContain("\n");
     expect(message).toContain("[redacted]");
-    expect(properties).toEqual({ title: "Maintainer Firewall: Token [redacted]" });
+    expect(properties).toEqual({ title: "Maintainer Firewall: Token [redacted] (token.[redacted])" });
   });
 
   it("truncates oversized annotation messages", () => {
