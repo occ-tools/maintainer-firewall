@@ -2,7 +2,14 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { analyzeWithAi } from "./ai.js";
 import { loadCodeOwnerHints } from "./codeowners.js";
-import { composeReport, shouldFail, shouldPostComment, shouldRefreshExistingCleanReport } from "./comment.js";
+import {
+  composeReport,
+  composeSkippedReport,
+  shouldFail,
+  shouldPostComment,
+  shouldPostSkippedComment,
+  shouldRefreshExistingCleanReport
+} from "./comment.js";
 import { loadConfig } from "./config.js";
 import { validateConfig } from "./diagnostics.js";
 import { loadRepositoryGuidance } from "./guidance.js";
@@ -37,7 +44,7 @@ async function run(): Promise<void> {
   if (!subject) {
     const skipReason = `event ${github.context.eventName} is not handled`;
     setSkippedOutputs(skipReason, reportJsonPath);
-    const skippedReport = `## Maintainer Firewall report\n\nSkipped: ${skipReason}.`;
+    const skippedReport = composeSkippedReport(null, skipReason, config);
     core.info(skippedReport);
     if (writeStepSummary) {
       await tryWrite("write step summary", async () => {
@@ -57,7 +64,7 @@ async function run(): Promise<void> {
   const skipReason = getSkipReason(subject, config);
   if (skipReason) {
     setSkippedOutputs(skipReason, reportJsonPath);
-    const skippedReport = `## Maintainer Firewall report\n\nSkipped ${subject.kind} #${subject.number}: ${skipReason}.`;
+    const skippedReport = composeSkippedReport(subject, skipReason, config);
     core.info(skippedReport);
     if (writeStepSummary) {
       await tryWrite("write step summary", async () => {
@@ -69,6 +76,27 @@ async function run(): Promise<void> {
       await tryWrite("write JSON report", () =>
         writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason))
       );
+    }
+
+    if (!dryRun) {
+      if (config.labeling.enabled && config.labeling.removeStale) {
+        const staleLabels = staleManagedLabels(subject.labels, [], config);
+        if (staleLabels.length > 0) {
+          await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+        }
+      }
+
+      const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number);
+      if (shouldPostSkippedComment(config, hasExistingReport)) {
+        await tryWrite("upsert skipped comment", () => upsertComment(
+          octokit,
+          owner,
+          repo,
+          subject.number,
+          skippedReport,
+          config.comment.updateExisting
+        ));
+      }
     }
 
     return;

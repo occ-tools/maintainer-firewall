@@ -2,6 +2,12 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.1.3 - Skip State Cleanup
+
+- Refreshes an existing Maintainer Firewall report when an ignore rule starts skipping a subject, avoiding stale contributor instructions.
+- Removes stale managed labels when a skipped subject still has labels from an earlier run.
+- Keeps the default skip path low-noise by updating existing reports instead of creating new skip comments.
+
 ## 0.1.2 - Config Robustness
 
 - Makes YAML config merging shape-aware so invalid object, array, boolean, number, or string overrides fall back to defaults instead of crashing the action.

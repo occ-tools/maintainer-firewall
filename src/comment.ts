@@ -76,6 +76,21 @@ export function composeReport(
   return lines.join("\n");
 }
 
+export function composeSkippedReport(subject: Subject | null, skipReason: string, config: FirewallConfig): string {
+  const lines = [
+    MARKER,
+    `## ${config.comment.header}`,
+    "",
+    subject
+      ? `Skipped ${subject.kind === "issue" ? "issue" : "pull request"} #${subject.number}: ${skipReason}.`
+      : `Skipped: ${skipReason}.`,
+    "",
+    "_Maintainer Firewall skipped this subject because an ignore rule matched._"
+  ];
+
+  return lines.join("\n");
+}
+
 export function shouldFail(findings: Finding[]): boolean {
   return findings.some((finding) => finding.severity === "warning" || finding.severity === "error");
 }
@@ -97,6 +112,18 @@ export function shouldRefreshExistingCleanReport(config: FirewallConfig, finding
     config.comment.updateExisting &&
     config.comment.postWhen === "findings" &&
     findings.length === 0;
+}
+
+export function shouldPostSkippedComment(config: FirewallConfig, hasExistingReport: boolean): boolean {
+  if (!config.comment.enabled || config.comment.postWhen === "never") {
+    return false;
+  }
+
+  if (config.comment.postWhen === "always") {
+    return true;
+  }
+
+  return config.comment.updateExisting && hasExistingReport;
 }
 
 function escapeTable(value: string): string {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { composeReport, shouldPostComment, shouldRefreshExistingCleanReport } from "../src/comment.js";
+import {
+  composeReport,
+  composeSkippedReport,
+  shouldPostComment,
+  shouldPostSkippedComment,
+  shouldRefreshExistingCleanReport
+} from "../src/comment.js";
 import { defaultConfig } from "../src/config.js";
 import { createReviewSummary } from "../src/review.js";
 import type { Finding, IssueSubject } from "../src/types.js";
@@ -59,6 +65,15 @@ describe("composeReport", () => {
   });
 });
 
+describe("composeSkippedReport", () => {
+  it("renders a marked skipped report for existing comments", () => {
+    const report = composeSkippedReport(subject, "label skip-firewall is ignored", defaultConfig);
+
+    expect(report).toContain("<!-- maintainer-firewall:report -->");
+    expect(report).toContain("Skipped issue #9: label skip-firewall is ignored.");
+  });
+});
+
 describe("shouldPostComment", () => {
   it("posts only when findings exist by default", () => {
     expect(shouldPostComment(defaultConfig, [])).toBe(false);
@@ -99,6 +114,31 @@ describe("shouldPostComment", () => {
         source: "rule"
       }
     ])).toBe(false);
+  });
+});
+
+describe("shouldPostSkippedComment", () => {
+  it("refreshes skipped reports only when a report already exists by default", () => {
+    expect(shouldPostSkippedComment(defaultConfig, false)).toBe(false);
+    expect(shouldPostSkippedComment(defaultConfig, true)).toBe(true);
+  });
+
+  it("supports always and never modes for skipped reports", () => {
+    expect(shouldPostSkippedComment({
+      ...defaultConfig,
+      comment: {
+        ...defaultConfig.comment,
+        postWhen: "always"
+      }
+    }, false)).toBe(true);
+
+    expect(shouldPostSkippedComment({
+      ...defaultConfig,
+      comment: {
+        ...defaultConfig.comment,
+        postWhen: "never"
+      }
+    }, true)).toBe(false);
   });
 });
 

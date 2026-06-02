@@ -1,6 +1,6 @@
 {
   "name": "maintainer-firewall",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A maintainer-first GitHub Action that filters noisy issues and pull requests by evidence, reproducibility, scope, and project-specific rules.",
   "type": "module",
   "main": "dist/index.js",

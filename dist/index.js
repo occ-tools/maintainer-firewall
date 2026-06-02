@@ -48040,6 +48040,19 @@ function composeReport(subject, findings, config, summary) {
     lines.push("_Review readiness is an advisory triage score, not a judgment of contributor quality. Maintainer Firewall does not decide whether text was AI-generated._");
     return lines.join("\n");
 }
+function composeSkippedReport(subject, skipReason, config) {
+    const lines = [
+        MARKER,
+        `## ${config.comment.header}`,
+        "",
+        subject
+            ? `Skipped ${subject.kind === "issue" ? "issue" : "pull request"} #${subject.number}: ${skipReason}.`
+            : `Skipped: ${skipReason}.`,
+        "",
+        "_Maintainer Firewall skipped this subject because an ignore rule matched._"
+    ];
+    return lines.join("\n");
+}
 function shouldFail(findings) {
     return findings.some((finding) => finding.severity === "warning" || finding.severity === "error");
 }
@@ -48057,6 +48070,15 @@ function shouldRefreshExistingCleanReport(config, findings) {
         config.comment.updateExisting &&
         config.comment.postWhen === "findings" &&
         findings.length === 0;
+}
+function shouldPostSkippedComment(config, hasExistingReport) {
+    if (!config.comment.enabled || config.comment.postWhen === "never") {
+        return false;
+    }
+    if (config.comment.postWhen === "always") {
+        return true;
+    }
+    return config.comment.updateExisting && hasExistingReport;
 }
 function escapeTable(value) {
     return value.replace(/\|/g, "\\|").replace(/\n/g, "<br>");
@@ -48982,7 +49004,7 @@ async function run() {
     if (!subject) {
         const skipReason = `event ${github_context.eventName} is not handled`;
         setSkippedOutputs(skipReason, reportJsonPath);
-        const skippedReport = `## Maintainer Firewall report\n\nSkipped: ${skipReason}.`;
+        const skippedReport = composeSkippedReport(null, skipReason, config);
         info(skippedReport);
         if (writeStepSummary) {
             await tryWrite("write step summary", async () => {
@@ -48997,7 +49019,7 @@ async function run() {
     const skipReason = getSkipReason(subject, config);
     if (skipReason) {
         setSkippedOutputs(skipReason, reportJsonPath);
-        const skippedReport = `## Maintainer Firewall report\n\nSkipped ${subject.kind} #${subject.number}: ${skipReason}.`;
+        const skippedReport = composeSkippedReport(subject, skipReason, config);
         info(skippedReport);
         if (writeStepSummary) {
             await tryWrite("write step summary", async () => {
@@ -49006,6 +49028,18 @@ async function run() {
         }
         if (reportJsonPath) {
             await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason)));
+        }
+        if (!dryRun) {
+            if (config.labeling.enabled && config.labeling.removeStale) {
+                const staleLabels = staleManagedLabels(subject.labels, [], config);
+                if (staleLabels.length > 0) {
+                    await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+                }
+            }
+            const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number);
+            if (shouldPostSkippedComment(config, hasExistingReport)) {
+                await tryWrite("upsert skipped comment", () => upsertComment(octokit, owner, repo, subject.number, skippedReport, config.comment.updateExisting));
+            }
         }
         return;
     }
