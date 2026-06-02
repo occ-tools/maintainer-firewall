@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { applyLabels, buildSubject } from "../src/github-client.js";
+import { applyLabels, buildSubject, hasReportComment } from "../src/github-client.js";
 
 vi.mock("@actions/core", () => ({
   info: vi.fn(),
@@ -106,6 +106,52 @@ describe("applyLabels", () => {
       issue_number: 42,
       labels: ["needs-info"]
     });
+  });
+});
+
+describe("hasReportComment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns true when a managed report comment already exists", async () => {
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([
+        {
+          id: 10,
+          body: "<!-- maintainer-firewall:report -->\n## Maintainer Firewall report"
+        }
+      ]),
+      rest: {
+        issues: {
+          listComments: vi.fn()
+        }
+      }
+    };
+
+    await expect(hasReportComment(octokit as never, "octo", "repo", 42)).resolves.toBe(true);
+    expect(octokit.paginate).toHaveBeenCalledWith(octokit.rest.issues.listComments, {
+      owner: "octo",
+      repo: "repo",
+      issue_number: 42,
+      per_page: 100
+    });
+  });
+
+  it("continues when existing report comments cannot be listed", async () => {
+    const octokit = {
+      paginate: vi.fn().mockRejectedValue(new Error("Resource not accessible by integration")),
+      rest: {
+        issues: {
+          listComments: vi.fn()
+        }
+      }
+    };
+
+    await expect(hasReportComment(octokit as never, "octo", "repo", 42)).resolves.toBe(false);
+    expect(core.warning).toHaveBeenCalledWith(
+      "Could not check for an existing Maintainer Firewall report on #42: Resource not accessible by integration."
+    );
   });
 });
 

@@ -2,6 +2,12 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.1.9 - Comment Lookup Resilience
+
+- Keeps runs from failing when GitHub cannot list existing report comments during clean-report or skipped-report refresh checks.
+- Emits a workflow warning for failed report-comment lookups and continues with outputs, step summaries, and JSON reports.
+- Adds GitHub client tests for existing report comment detection and comment lookup fallback.
+
 ## 0.1.8 - AI Output Guardrails
 
 - Normalizes AI finding text by compacting whitespace before reports, summaries, and JSON output use it.

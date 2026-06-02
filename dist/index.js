@@ -48950,7 +48950,13 @@ async function upsertComment(octokit, owner, repo, issueNumber, body, updateExis
     });
 }
 async function hasReportComment(octokit, owner, repo, issueNumber) {
-    return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
+    try {
+        return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
+    }
+    catch (error) {
+        core_warning(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${github_client_getErrorMessage(error)}.`);
+        return false;
+    }
 }
 async function findReportComment(octokit, owner, repo, issueNumber) {
     const comments = await octokit.paginate(octokit.rest.issues.listComments, {

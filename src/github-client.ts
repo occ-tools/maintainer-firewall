@@ -204,7 +204,12 @@ export async function hasReportComment(
   repo: string,
   issueNumber: number
 ): Promise<boolean> {
-  return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
+  try {
+    return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
+  } catch (error) {
+    core.warning(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${getErrorMessage(error)}.`);
+    return false;
+  }
 }
 
 async function findReportComment(
