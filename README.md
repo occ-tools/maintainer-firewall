@@ -63,7 +63,7 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.1.4
+      - uses: wangjiehu/maintainer-firewall@v0.1.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -79,7 +79,7 @@ The `labeled` and `unlabeled` events let ignore labels such as `skip-firewall` a
 Set `report-json-path` when another workflow step should consume a structured report:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.1.4
+      - uses: wangjiehu/maintainer-firewall@v0.1.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           report-json-path: maintainer-firewall-report.json
@@ -102,7 +102,7 @@ Do not combine `pull_request_target`, write permissions, and a checkout of untru
 Maintainer Firewall works without an OpenAI API key. To enable AI-assisted semantic checks, set `ai.enabled: true` in `.maintainer-firewall.yml` and pass an API key:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.1.4
+      - uses: wangjiehu/maintainer-firewall@v0.1.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -117,7 +117,7 @@ When AI analysis is enabled, Maintainer Firewall also loads configured repositor
 Start in dry-run mode if you want to inspect reports without writing comments or labels:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.1.4
+      - uses: wangjiehu/maintainer-firewall@v0.1.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -144,6 +144,8 @@ Maintainer Firewall sets outputs on every handled issue or pull request:
 
 ## Configuration
 
+The `$schema` line enables editor descriptions, completion, enums, and default values. Config files can be partial: omit fields you do not need to change. Array values replace the default list rather than appending to it, so include the full list when customizing arrays.
+
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/wangjiehu/maintainer-firewall/main/schema/maintainer-firewall.schema.json
 version: 1
@@ -165,9 +167,14 @@ pullRequest:
   sensitivePaths:
     - ".github/workflows/**"
     - "package-lock.json"
+    - "pnpm-lock.yaml"
+    - "yarn.lock"
+    - "Cargo.lock"
+    - "go.sum"
   testPathPatterns:
     - "**/*.test.*"
     - "**/*.spec.*"
+    - "**/__tests__/**"
     - "tests/**"
   requiredSections:
     - "Test plan"
@@ -176,8 +183,13 @@ repository:
   guidancePaths:
     - "CONTRIBUTING.md"
     - ".github/CONTRIBUTING.md"
-    - ".github/ISSUE_TEMPLATE"
+    - "docs/CONTRIBUTING.md"
+    - "PULL_REQUEST_TEMPLATE.md"
     - ".github/pull_request_template.md"
+    - ".github/PULL_REQUEST_TEMPLATE.md"
+    - ".github/PULL_REQUEST_TEMPLATE"
+    - ".github/ISSUE_TEMPLATE.md"
+    - ".github/ISSUE_TEMPLATE"
   codeOwnersPaths:
     - "CODEOWNERS"
     - ".github/CODEOWNERS"
@@ -190,8 +202,18 @@ security:
     - "\\bCVE-\\d{4}-\\d+\\b"
     - "\\bvulnerab(?:ility|le)\\b"
     - "\\bexploit\\b"
+    - "\\bRCE\\b"
+    - "\\bremote code execution\\b"
     - "\\bXSS\\b"
+    - "\\bCSRF\\b"
+    - "\\bSSRF\\b"
+    - "\\bSQL injection\\b"
+    - "\\bpath traversal\\b"
+    - "\\bprototype pollution\\b"
+    - "\\bauth bypass\\b"
+    - "\\bcredential leak\\b"
     - "\\btoken leak\\b"
+    - "\\bsecret leak\\b"
   secretPatterns:
     - "\\bgithub_pat_[A-Za-z0-9_]{20,}\\b"
     - "\\bgh[pousr]_[A-Za-z0-9_]{36,}\\b"
@@ -265,8 +287,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internal flow and saf
 ```bash
 npm run check
 npm run verify:dist
-git tag v0.1.4
-git push origin main v0.1.4
+git tag v0.1.5
+git push origin main v0.1.5
 ```
 
 The release workflow publishes GitHub release notes for `v*` tags.

@@ -2,6 +2,13 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.1.5 - Schema Guidance
+
+- Adds descriptions, defaults, examples, and enum guidance to the YAML configuration schema so editors can explain settings inline.
+- Adds schema coverage tests that compare documented defaults against the runtime default configuration.
+- Clarifies that array settings replace defaults rather than appending to them, and expands README examples to avoid accidental narrowing.
+- Lets the repository dogfood current default security patterns instead of pinning an older partial pattern list.
+
 ## 0.1.4 - Contributor-Friendly Reports
 
 - Rewrites prominent next steps to speak directly and respectfully to contributors instead of describing them in third person.

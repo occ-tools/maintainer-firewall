@@ -2,144 +2,379 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/wangjiehu/maintainer-firewall/main/schema/maintainer-firewall.schema.json",
   "title": "Maintainer Firewall Configuration",
+  "description": "Configuration for Maintainer Firewall. Partial configs are supported; omitted fields use the documented defaults.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "version": {
+      "description": "Configuration format version. Keep this at 1 for the current schema.",
       "type": "integer",
-      "const": 1
+      "const": 1,
+      "default": 1
     },
     "issue": {
+      "description": "Controls deterministic checks for GitHub issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "minBodyCharacters": { "type": "integer", "minimum": 0 },
-        "requireReproduction": { "type": "boolean" },
-        "requireEnvironment": { "type": "boolean" },
-        "duplicateSearchLimit": { "type": "integer", "minimum": 0 },
+        "enabled": {
+          "description": "Run Maintainer Firewall checks on issues.",
+          "type": "boolean",
+          "default": true
+        },
+        "minBodyCharacters": {
+          "description": "Minimum issue body length before the issue is considered to have enough context.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 120
+        },
+        "requireReproduction": {
+          "description": "Ask for reproduction details when issue text does not include them.",
+          "type": "boolean",
+          "default": true
+        },
+        "requireEnvironment": {
+          "description": "Ask for environment details when issue text does not include them.",
+          "type": "boolean",
+          "default": true
+        },
+        "duplicateSearchLimit": {
+          "description": "Maximum number of similar issues to inspect when looking for possible duplicates.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 8
+        },
         "requiredSections": {
+          "description": "Issue-template section headings that must appear in the issue body.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [],
+          "examples": [["Reproduction", "Environment"]]
         }
       }
     },
     "pullRequest": {
+      "description": "Controls deterministic checks for pull requests.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "minBodyCharacters": { "type": "integer", "minimum": 0 },
-        "requireLinkedIssue": { "type": "boolean" },
-        "requireTestsForCodeChanges": { "type": "boolean" },
-        "largeChangeThreshold": { "type": "integer", "minimum": 1 },
+        "enabled": {
+          "description": "Run Maintainer Firewall checks on pull requests.",
+          "type": "boolean",
+          "default": true
+        },
+        "minBodyCharacters": {
+          "description": "Minimum pull request body length before the pull request is considered to have enough context.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 120
+        },
+        "requireLinkedIssue": {
+          "description": "Ask contributors to link an issue or explain why one is not needed.",
+          "type": "boolean",
+          "default": true
+        },
+        "requireTestsForCodeChanges": {
+          "description": "Ask for tests or a test-plan explanation when code changes do not include matching test files.",
+          "type": "boolean",
+          "default": true
+        },
+        "largeChangeThreshold": {
+          "description": "Changed-line count that marks a pull request as large enough to need maintainer attention.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 800
+        },
         "sensitivePaths": {
+          "description": "Glob patterns for files that should trigger a maintainer-review finding when changed.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            ".github/workflows/**",
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "Cargo.lock",
+            "go.sum"
+          ],
+          "examples": [[".github/workflows/**", "package-lock.json"]]
         },
         "testPathPatterns": {
+          "description": "Glob patterns used to identify test files in pull request changes.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "**/*.test.*",
+            "**/*.spec.*",
+            "**/__tests__/**",
+            "tests/**"
+          ],
+          "examples": [["**/*.test.*", "tests/**"]]
         },
         "requiredSections": {
+          "description": "Pull-request-template section headings that must appear in the pull request body.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [],
+          "examples": [["Summary", "Test plan"]]
         }
       }
     },
     "repository": {
+      "description": "Controls repository guidance and ownership context used in reports and AI prompts.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "guidancePaths": {
+          "description": "Repository files to load as contribution guidance, such as CONTRIBUTING files and issue or pull request templates.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "CONTRIBUTING.md",
+            ".github/CONTRIBUTING.md",
+            "docs/CONTRIBUTING.md",
+            "PULL_REQUEST_TEMPLATE.md",
+            ".github/pull_request_template.md",
+            ".github/PULL_REQUEST_TEMPLATE.md",
+            ".github/PULL_REQUEST_TEMPLATE",
+            ".github/ISSUE_TEMPLATE.md",
+            ".github/ISSUE_TEMPLATE"
+          ]
         },
         "codeOwnersPaths": {
+          "description": "CODEOWNERS file locations used to add owner-routing hints for changed pull request files.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "CODEOWNERS",
+            ".github/CODEOWNERS",
+            "docs/CODEOWNERS"
+          ]
         },
-        "maxGuidanceCharacters": { "type": "integer", "minimum": 0 }
+        "maxGuidanceCharacters": {
+          "description": "Maximum combined guidance text loaded from repository guidance files.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 16000
+        }
       }
     },
     "security": {
+      "description": "Controls security-sensitive language detection and secret redaction.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "description": "Run security-sensitive language and exposed-secret checks.",
+          "type": "boolean",
+          "default": true
+        },
         "reportPatterns": {
+          "description": "Regular expressions that mark text as security-sensitive and route it for maintainer review.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "\\bCVE-\\d{4}-\\d+\\b",
+            "\\bvulnerab(?:ility|le)\\b",
+            "\\bexploit\\b",
+            "\\bRCE\\b",
+            "\\bremote code execution\\b",
+            "\\bXSS\\b",
+            "\\bCSRF\\b",
+            "\\bSSRF\\b",
+            "\\bSQL injection\\b",
+            "\\bpath traversal\\b",
+            "\\bprototype pollution\\b",
+            "\\bauth bypass\\b",
+            "\\bcredential leak\\b",
+            "\\btoken leak\\b",
+            "\\bsecret leak\\b"
+          ]
         },
         "secretPatterns": {
+          "description": "Regular expressions used to redact likely secrets before reports, summaries, and optional AI prompts.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "\\bgithub_pat_[A-Za-z0-9_]{20,}\\b",
+            "\\bgh[pousr]_[A-Za-z0-9_]{36,}\\b",
+            "\\bsk-[A-Za-z0-9_-]{20,}\\b",
+            "\\bglpat-[A-Za-z0-9_-]{20,}\\b",
+            "\\bnpm_[A-Za-z0-9]{20,}\\b",
+            "\\bAIza[0-9A-Za-z\\-_]{35}\\b",
+            "\\bAKIA[0-9A-Z]{16}\\b",
+            "\\bxox[baprs]-[A-Za-z0-9-]{20,}\\b",
+            "\\bSG\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}\\b",
+            "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b",
+            "\\b-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----\\b"
+          ]
         }
       }
     },
     "labels": {
+      "description": "Label names applied to findings. These labels are created automatically when labeling.createMissing is true.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "needsInfo": { "type": "string" },
-        "needsTests": { "type": "string" },
-        "largeScope": { "type": "string" },
-        "possibleDuplicate": { "type": "string" },
-        "securityReview": { "type": "string" },
-        "maintainerReview": { "type": "string" }
+        "needsInfo": {
+          "description": "Label for issues or pull requests that need more context.",
+          "type": "string",
+          "default": "needs-info"
+        },
+        "needsTests": {
+          "description": "Label for pull requests that need tests or a test-plan explanation.",
+          "type": "string",
+          "default": "needs-tests"
+        },
+        "largeScope": {
+          "description": "Label for pull requests that exceed the configured large-change threshold.",
+          "type": "string",
+          "default": "large-scope"
+        },
+        "possibleDuplicate": {
+          "description": "Label for issues that look similar to existing issues.",
+          "type": "string",
+          "default": "possible-duplicate"
+        },
+        "securityReview": {
+          "description": "Label for security-sensitive findings.",
+          "type": "string",
+          "default": "security-review"
+        },
+        "maintainerReview": {
+          "description": "Label for findings that should be routed to maintainers or owners.",
+          "type": "string",
+          "default": "maintainer-review"
+        }
       }
     },
     "labeling": {
+      "description": "Controls how Maintainer Firewall manages labels for active and resolved findings.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "createMissing": { "type": "boolean" },
-        "removeStale": { "type": "boolean" }
+        "enabled": {
+          "description": "Apply labels for findings when the run is not dry-run.",
+          "type": "boolean",
+          "default": true
+        },
+        "createMissing": {
+          "description": "Create managed labels before applying them when they do not already exist.",
+          "type": "boolean",
+          "default": true
+        },
+        "removeStale": {
+          "description": "Remove managed labels when their matching findings are no longer present.",
+          "type": "boolean",
+          "default": true
+        }
       }
     },
     "comment": {
+      "description": "Controls report comments on issues and pull requests.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "updateExisting": { "type": "boolean" },
-        "header": { "type": "string" },
-        "postWhen": {
-          "type": "string",
-          "enum": ["always", "findings", "never"]
+        "enabled": {
+          "description": "Post or update Maintainer Firewall report comments when the run is not dry-run.",
+          "type": "boolean",
+          "default": true
         },
-        "maxFindings": { "type": "integer", "minimum": 1 },
-        "includePassingChecks": { "type": "boolean" }
+        "updateExisting": {
+          "description": "Update the existing managed report comment instead of adding a new one.",
+          "type": "boolean",
+          "default": true
+        },
+        "header": {
+          "description": "Heading shown at the top of report comments.",
+          "type": "string",
+          "default": "Maintainer Firewall report"
+        },
+        "postWhen": {
+          "description": "Controls when report comments are posted: always, only when findings exist, or never.",
+          "type": "string",
+          "enum": ["always", "findings", "never"],
+          "default": "findings"
+        },
+        "maxFindings": {
+          "description": "Maximum number of findings shown in the report comment details table.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 8
+        },
+        "includePassingChecks": {
+          "description": "Include passing checks in report comments so contributors can see what already looks good.",
+          "type": "boolean",
+          "default": true
+        }
       }
     },
     "ignore": {
+      "description": "Skips Maintainer Firewall for trusted automation, explicit skip labels, or configured title patterns.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "authors": {
+          "description": "GitHub logins that should skip Maintainer Firewall.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "dependabot[bot]",
+            "renovate[bot]",
+            "github-actions[bot]"
+          ]
         },
         "labels": {
+          "description": "Labels that skip Maintainer Firewall when present on the issue or pull request.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "skip-firewall"
+          ]
         },
         "titlePatterns": {
+          "description": "Regular expressions that skip Maintainer Firewall when the title matches.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": [
+            "^\\[skip firewall\\]"
+          ]
         }
       }
     },
     "ai": {
+      "description": "Controls optional OpenAI-assisted semantic review. Deterministic checks still run when AI is disabled.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "model": { "type": "string" },
-        "maxInputCharacters": { "type": "integer", "minimum": 1000 },
-        "maxOutputTokens": { "type": "integer", "minimum": 100 },
-        "timeoutMs": { "type": "integer", "minimum": 1000 }
+        "enabled": {
+          "description": "Enable OpenAI-assisted semantic findings. Requires an OpenAI API key input.",
+          "type": "boolean",
+          "default": false
+        },
+        "model": {
+          "description": "OpenAI model used for semantic review when AI is enabled.",
+          "type": "string",
+          "default": "gpt-5-mini"
+        },
+        "maxInputCharacters": {
+          "description": "Maximum redacted subject and guidance text sent to the model.",
+          "type": "integer",
+          "minimum": 1000,
+          "default": 12000
+        },
+        "maxOutputTokens": {
+          "description": "Maximum model output tokens for semantic review.",
+          "type": "integer",
+          "minimum": 100,
+          "default": 1200
+        },
+        "timeoutMs": {
+          "description": "Timeout for the OpenAI request in milliseconds.",
+          "type": "integer",
+          "minimum": 1000,
+          "default": 15000
+        }
       }
     }
   }

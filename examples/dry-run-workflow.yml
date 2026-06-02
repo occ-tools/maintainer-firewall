@@ -19,7 +19,7 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.1.4
+      - uses: wangjiehu/maintainer-firewall@v0.1.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true

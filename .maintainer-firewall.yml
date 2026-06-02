@@ -38,6 +38,7 @@ repository:
     - "PULL_REQUEST_TEMPLATE.md"
     - ".github/pull_request_template.md"
     - ".github/PULL_REQUEST_TEMPLATE.md"
+    - ".github/PULL_REQUEST_TEMPLATE"
     - ".github/ISSUE_TEMPLATE.md"
     - ".github/ISSUE_TEMPLATE"
   codeOwnersPaths:
@@ -48,17 +49,6 @@ repository:
 
 security:
   enabled: true
-  reportPatterns:
-    - "\\bCVE-\\d{4}-\\d+\\b"
-    - "\\bvulnerab(?:ility|le)\\b"
-    - "\\bexploit\\b"
-    - "\\bRCE\\b"
-    - "\\bXSS\\b"
-    - "\\btoken leak\\b"
-  secretPatterns:
-    - "\\bgh[pousr]_[A-Za-z0-9_]{36,}\\b"
-    - "\\bsk-[A-Za-z0-9_-]{20,}\\b"
-    - "\\bAKIA[0-9A-Z]{16}\\b"
 
 labels:
   needsInfo: needs-info
