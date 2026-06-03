@@ -27,7 +27,7 @@ Each run produces a compact review-readiness report:
 - Optional labels
 - Optional passing checks, so good contributions do not look like a silent no-op
 
-The default mode is intentionally low-noise: it writes a comment only when there are findings. Workflow outputs are always set, so teams can build custom checks or dashboards without adding comments to clean issues and PRs. The Actions step summary also includes a setup table showing the active config path, dry-run state, comments, labels, annotations, JSON report, rule policy, configuration diagnostics, AI status, and failure policy.
+The default mode is intentionally low-noise: it writes a comment only when there are findings. Workflow outputs are always set, so teams can build custom checks or dashboards without adding comments to clean issues and PRs. The Actions step summary also includes a setup table showing the active config path, dry-run state, comments, labels, annotations, JSON report, rule policy, configuration diagnostics, runtime diagnostics, AI status, and failure policy.
 
 ## What it checks
 
@@ -76,7 +76,7 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.5.0
+      - uses: wangjiehu/maintainer-firewall@v0.6.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -85,6 +85,7 @@ jobs:
 Add `.maintainer-firewall.yml` to customize thresholds, labels, and optional AI analysis.
 Unsupported keys, invalid value shapes, invalid `comment.postWhen` values, and below-minimum numeric settings fall back to safe defaults and emit workflow warnings, so a malformed config does not break triage.
 Configuration diagnostics also appear in the step summary, action outputs, and structured JSON reports when configured.
+Runtime diagnostics for best-effort operations such as AI fallback, labels, comments, JSON reports, and step-summary writes are surfaced the same way.
 
 After the first run, inspect the setup table in the step summary. Move to advisory or collaborative mode only after the findings and suggested labels match your expectations. See [Installation](docs/INSTALLATION.md) and [Rollout Playbook](docs/ROLLOUT_PLAYBOOK.md).
 
@@ -96,7 +97,7 @@ The `labeled` and `unlabeled` events let ignore labels such as `skip-firewall` a
 Set `report-json-path` when another workflow step should consume a structured report:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.5.0
+      - uses: wangjiehu/maintainer-firewall@v0.6.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           report-json-path: maintainer-firewall-report.json
@@ -119,7 +120,7 @@ Do not combine `pull_request_target`, write permissions, and a checkout of untru
 Maintainer Firewall works without an OpenAI API key. To enable AI-assisted semantic checks, set `ai.enabled: true` in `.maintainer-firewall.yml` and pass an API key:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.5.0
+      - uses: wangjiehu/maintainer-firewall@v0.6.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -134,7 +135,7 @@ When AI analysis is enabled, Maintainer Firewall also loads configured repositor
 Start in dry-run mode if you want to inspect reports without writing comments or labels:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.5.0
+      - uses: wangjiehu/maintainer-firewall@v0.6.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -174,6 +175,8 @@ Maintainer Firewall sets outputs on every handled issue or pull request:
 | `report-json-path` | Path to the structured JSON report when configured. |
 | `config-warnings-count` | Number of configuration diagnostics emitted while loading and validating config. |
 | `config-warnings` | JSON array of configuration diagnostics emitted while loading and validating config. |
+| `runtime-warnings-count` | Number of runtime diagnostics emitted while best-effort operations ran. |
+| `runtime-warnings` | JSON array of runtime diagnostics emitted while best-effort operations ran. |
 
 ## Configuration
 
@@ -328,8 +331,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internal flow and saf
 ```bash
 npm run check
 npm run verify:dist
-git tag v0.5.0
-git push origin main v0.5.0
+git tag v0.6.0
+git push origin main v0.6.0
 ```
 
 The release workflow publishes GitHub release notes for `v*` tags.

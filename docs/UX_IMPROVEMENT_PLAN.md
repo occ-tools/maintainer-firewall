@@ -1,8 +1,8 @@
 # User Experience Improvement Plan
 
-Status: approved direction; Phase 0, part of Phase 1, and the highest-value Phase 2 tuning controls are implemented in v0.5.0.
+Status: approved direction; Phase 0, part of Phase 1, and the highest-value Phase 2 tuning controls are implemented in v0.6.0.
 
-Baseline: Maintainer Firewall v0.5.0 already supports low-noise triage reports, labels, setup-state step summaries, structured JSON reports with configuration diagnostics, optional workflow annotations, CODEOWNERS routing hints, configuration schema guidance, stable finding IDs, focused onboarding docs, exact finding-ID suppression, exact finding-ID severity overrides, configuration warning outputs, and optional AI-assisted semantic review.
+Baseline: Maintainer Firewall v0.6.0 already supports low-noise triage reports, labels, setup-state step summaries, structured JSON reports with configuration and runtime diagnostics, optional workflow annotations, CODEOWNERS routing hints, configuration schema guidance, stable finding IDs, focused onboarding docs, exact finding-ID suppression, exact finding-ID severity overrides, warning outputs, and optional AI-assisted semantic review.
 
 ## Objective
 
@@ -45,7 +45,7 @@ The north-star user outcome is: a maintainer can install safely in under 10 minu
 | Installation | README mixes quick start, safety notes, inputs, config, and release info in one long page. | First-time users can miss important permission or rollout details. |
 | Mode selection | Users must combine `dry-run`, `labeling.enabled`, `comment.postWhen`, annotations, summaries, and JSON manually. | More setup errors and inconsistent rollout patterns. |
 | First run | There is no dedicated "what to look at after the first run" checklist. | Users may not know whether findings are expected, noisy, or misconfigured. |
-| Config tuning | Schema, exact finding-ID policy, and surfaced configuration diagnostics now exist, but there is no downloadable effective-config output. | Debugging complex org configs may still need an effective-config report. |
+| Config tuning | Schema, exact finding-ID policy, surfaced configuration diagnostics, and surfaced runtime diagnostics now exist, but there is no downloadable effective-config output. | Debugging complex org configs may still need an effective-config report. |
 | Report explainability | Stable IDs and rule docs now exist, but project-specific guidance links are still not attached to individual findings. | Contributors may still need template examples for some project-specific cases. |
 | Contributor UX | Next steps are good, but not yet linked to project-specific examples or accepted evidence patterns. | Contributors may still ask what counts as enough information. |
 | Long-term operations | JSON output exists, but no documented metrics workflow or dashboard path exists. | Teams cannot easily measure noise reduction or false positives. |

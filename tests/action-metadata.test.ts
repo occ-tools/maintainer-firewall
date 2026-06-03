@@ -46,7 +46,9 @@ const expectedOutputs = [
   "skip-reason",
   "report-json-path",
   "config-warnings-count",
-  "config-warnings"
+  "config-warnings",
+  "runtime-warnings-count",
+  "runtime-warnings"
 ];
 
 describe("action metadata", () => {

@@ -1,13 +1,13 @@
 import type { Finding, FirewallConfig, Severity } from "./types.js";
+import { isProtectedFindingId } from "./finding-ids.js";
 
 const SEVERITY_OVERRIDE_PRECEDENCE: Severity[] = ["error", "warning", "notice"];
-const PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
 
 export function applyFindingPolicy(findings: Finding[], config: FirewallConfig): Finding[] {
   const disabled = new Set(config.rules.disabled);
 
   return findings
-    .filter((finding) => !disabled.has(finding.id) || PROTECTED_FINDING_IDS.has(finding.id))
+    .filter((finding) => !disabled.has(finding.id) || isProtectedFindingId(finding.id))
     .map((finding) => ({
       ...finding,
       severity: severityForFinding(finding, config) ?? finding.severity
@@ -15,7 +15,7 @@ export function applyFindingPolicy(findings: Finding[], config: FirewallConfig):
 }
 
 function severityForFinding(finding: Finding, config: FirewallConfig): Severity | null {
-  if (PROTECTED_FINDING_IDS.has(finding.id)) {
+  if (isProtectedFindingId(finding.id)) {
     return null;
   }
 

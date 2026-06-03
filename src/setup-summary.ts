@@ -1,11 +1,11 @@
 import type { FirewallConfig, Subject } from "./types.js";
-
-const PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
+import { isProtectedFindingId } from "./finding-ids.js";
 
 export interface SetupSummaryOptions {
   config: FirewallConfig;
   configPath: string;
   configWarnings: string[];
+  runtimeWarnings?: string[];
   dryRun: boolean;
   emitAnnotations: boolean;
   failOnFindings: boolean;
@@ -15,6 +15,7 @@ export interface SetupSummaryOptions {
 }
 
 export function composeSetupSummary(options: SetupSummaryOptions): string {
+  const runtimeWarnings = options.runtimeWarnings ?? [];
   const rows: Array<[string, string]> = [
     ["Subject", options.subjectKind ? subjectLabel(options.subjectKind) : "No handled issue or pull request"],
     ["Config", options.configPath],
@@ -25,6 +26,7 @@ export function composeSetupSummary(options: SetupSummaryOptions): string {
     ["JSON report", options.reportJsonPath || "Disabled"],
     ["Rule policy", rulePolicyState(options.config)],
     ["Configuration warnings", options.configWarnings.length === 0 ? "None" : String(options.configWarnings.length)],
+    ["Runtime warnings", runtimeWarnings.length === 0 ? "None" : String(runtimeWarnings.length)],
     ["AI analysis", aiState(options.config, options.openAiApiKeyProvided)],
     ["Failure policy", options.failOnFindings ? "Fail on warning or error findings" : "Advisory; workflow does not fail on findings"]
   ];
@@ -46,6 +48,18 @@ export function composeSetupSummary(options: SetupSummaryOptions): string {
 
     if (options.configWarnings.length > 10) {
       lines.push(`- ${options.configWarnings.length - 10} additional warning${options.configWarnings.length === 11 ? "" : "s"} hidden.`);
+    }
+  }
+
+  if (runtimeWarnings.length > 0) {
+    lines.push("");
+    lines.push("### Runtime warnings");
+    for (const warning of runtimeWarnings.slice(0, 10)) {
+      lines.push(`- ${warning}`);
+    }
+
+    if (runtimeWarnings.length > 10) {
+      lines.push(`- ${runtimeWarnings.length - 10} additional warning${runtimeWarnings.length === 11 ? "" : "s"} hidden.`);
     }
   }
 
@@ -88,9 +102,9 @@ function aiState(config: FirewallConfig, openAiApiKeyProvided: boolean): string 
 }
 
 function rulePolicyState(config: FirewallConfig): string {
-  const disabledCount = config.rules.disabled.filter((id) => !PROTECTED_FINDING_IDS.has(id)).length;
+  const disabledCount = config.rules.disabled.filter((id) => !isProtectedFindingId(id)).length;
   const overrideCount = Object.entries(config.rules.severityOverrides).reduce(
-    (sum, [severity, ids]) => sum + ids.filter((id) => !PROTECTED_FINDING_IDS.has(id) || severity === "error").length,
+    (sum, [severity, ids]) => sum + ids.filter((id) => !isProtectedFindingId(id) || severity === "error").length,
     0
   );
   if (disabledCount === 0 && overrideCount === 0) {

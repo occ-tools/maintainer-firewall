@@ -44,13 +44,13 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.5.0
+      - uses: wangjiehu/maintainer-firewall@v0.6.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
 ```
 
-After the first run, inspect the step summary. It now shows both the review report and a setup table that confirms active surfaces such as dry-run, comments, labels, annotations, JSON report output, AI status, and failure policy.
+After the first run, inspect the step summary. It now shows both the review report and a setup table that confirms active surfaces such as dry-run, comments, labels, annotations, JSON report output, diagnostics, AI status, and failure policy.
 
 ## Fork Pull Requests
 

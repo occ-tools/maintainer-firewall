@@ -7,16 +7,19 @@ import type {
   PullRequestSubject,
   Subject
 } from "./types.js";
+import type { RuntimeWarningSink } from "./run-diagnostics.js";
 import { jaccardSimilarity, tokenize } from "./text.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 type GitHubContext = typeof github.context;
 const REPORT_MARKER = "<!-- maintainer-firewall:report -->";
+const defaultWarningSink: RuntimeWarningSink = (message) => core.warning(message);
 
 export async function buildSubject(
   octokit: Octokit,
   context: GitHubContext,
-  duplicateSearchLimit: number
+  duplicateSearchLimit: number,
+  warningSink: RuntimeWarningSink = defaultWarningSink
 ): Promise<Subject | null> {
   const payload = context.payload as Record<string, unknown>;
   const { owner, repo } = context.repo;
@@ -33,7 +36,8 @@ export async function buildSubject(
       repo,
       issue.number,
       issue.title,
-      duplicateSearchLimit
+      duplicateSearchLimit,
+      warningSink
     );
 
     return {
@@ -53,7 +57,7 @@ export async function buildSubject(
     isPullRequestPayload(payload)
   ) {
     const pullRequest = payload.pull_request;
-    const changedFiles = await listPullRequestFiles(octokit, owner, repo, pullRequest.number);
+    const changedFiles = await listPullRequestFiles(octokit, owner, repo, pullRequest.number, warningSink);
 
     return {
       kind: "pull_request",
@@ -77,7 +81,8 @@ async function listPullRequestFiles(
   octokit: Octokit,
   owner: string,
   repo: string,
-  pullNumber: number
+  pullNumber: number,
+  warningSink: RuntimeWarningSink
 ): Promise<ChangedFile[]> {
   try {
     const changedFiles = await octokit.paginate(octokit.rest.pulls.listFiles, {
@@ -95,7 +100,7 @@ async function listPullRequestFiles(
       changes: file.changes
     } satisfies ChangedFile));
   } catch (error) {
-    core.warning(`Could not list files for pull request #${pullNumber}: ${getErrorMessage(error)}. Continuing with title and body checks only.`);
+    warningSink(`Could not list files for pull request #${pullNumber}: ${getErrorMessage(error)}. Continuing with title and body checks only.`);
     return [];
   }
 }
@@ -202,12 +207,13 @@ export async function hasReportComment(
   octokit: Octokit,
   owner: string,
   repo: string,
-  issueNumber: number
+  issueNumber: number,
+  warningSink: RuntimeWarningSink = defaultWarningSink
 ): Promise<boolean> {
   try {
     return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
   } catch (error) {
-    core.warning(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${getErrorMessage(error)}.`);
+    warningSink(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${getErrorMessage(error)}.`);
     return false;
   }
 }
@@ -234,7 +240,8 @@ async function findDuplicateIssues(
   repo: string,
   currentNumber: number,
   title: string,
-  limit: number
+  limit: number,
+  warningSink: RuntimeWarningSink
 ): Promise<DuplicateCandidate[]> {
   if (limit <= 0) {
     return [];
@@ -263,7 +270,7 @@ async function findDuplicateIssues(
       .sort((left, right) => right.similarity - left.similarity)
       .slice(0, limit);
   } catch (error) {
-    core.warning(`Duplicate issue search failed: ${error instanceof Error ? error.message : String(error)}`);
+    warningSink(`Duplicate issue search failed: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 }

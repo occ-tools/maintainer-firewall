@@ -24,6 +24,9 @@ describe("composeSetupSummary", () => {
       configWarnings: [
         "config.rules.disabled[0] should be a string; using the default value for config.rules.disabled."
       ],
+      runtimeWarnings: [
+        "Could not upsert comment: Resource not accessible by integration."
+      ],
       dryRun: true,
       emitAnnotations: true,
       failOnFindings: false,
@@ -40,8 +43,11 @@ describe("composeSetupSummary", () => {
     expect(summary).toContain("| JSON report | reports/firewall.json |");
     expect(summary).toContain("| Rule policy | 1 disabled; 1 severity override |");
     expect(summary).toContain("| Configuration warnings | 1 |");
+    expect(summary).toContain("| Runtime warnings | 1 |");
     expect(summary).toContain("### Configuration warnings");
     expect(summary).toContain("config.rules.disabled[0] should be a string");
+    expect(summary).toContain("### Runtime warnings");
+    expect(summary).toContain("Could not upsert comment");
     expect(summary).toContain("Configured, but no API key was provided");
     expect(summary).not.toContain("OPENAI_API_KEY");
   });

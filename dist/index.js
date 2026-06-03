@@ -44943,7 +44943,7 @@ function truncate(value, maxCharacters) {
 
 
 const GUIDANCE_FILE_PATTERN = /\.(md|mdx|txt|ya?ml)$/i;
-async function loadRepositoryGuidance(octokit, owner, repo, ref, config) {
+async function loadRepositoryGuidance(octokit, owner, repo, ref, config, warningSink = (message) => core_warning(message)) {
     const docs = [];
     const seen = new Set();
     let remainingCharacters = config.repository.maxGuidanceCharacters;
@@ -44954,7 +44954,7 @@ async function loadRepositoryGuidance(octokit, owner, repo, ref, config) {
         if (remainingCharacters <= 0) {
             break;
         }
-        const loaded = await loadGuidancePath(octokit, owner, repo, ref, path);
+        const loaded = await loadGuidancePath(octokit, owner, repo, ref, path, warningSink);
         for (const doc of loaded) {
             if (remainingCharacters <= 0) {
                 break;
@@ -44987,7 +44987,7 @@ function summarizeGuidanceForPrompt(docs) {
         .map((doc) => `# ${doc.path}\n${doc.content}`)
         .join("\n\n---\n\n");
 }
-async function loadGuidancePath(octokit, owner, repo, ref, path) {
+async function loadGuidancePath(octokit, owner, repo, ref, path, warningSink) {
     try {
         const response = await octokit.rest.repos.getContent({
             owner,
@@ -44999,7 +44999,7 @@ async function loadGuidancePath(octokit, owner, repo, ref, path) {
             const children = response.data
                 .filter((entry) => entry.type === "file" && GUIDANCE_FILE_PATTERN.test(entry.name))
                 .slice(0, 20);
-            const nested = await Promise.all(children.map((entry) => loadGuidancePath(octokit, owner, repo, ref, entry.path)));
+            const nested = await Promise.all(children.map((entry) => loadGuidancePath(octokit, owner, repo, ref, entry.path, warningSink)));
             return nested.flat();
         }
         if (response.data.type !== "file" || !response.data.content) {
@@ -45018,7 +45018,7 @@ async function loadGuidancePath(octokit, owner, repo, ref, path) {
     catch (error) {
         const status = getErrorStatus(error);
         if (status !== 404) {
-            core_warning(`Failed to load repository guidance ${path}: ${getErrorMessage(error)}`);
+            warningSink(`Failed to load repository guidance ${path}: ${getErrorMessage(error)}`);
         }
         return [];
     }
@@ -45110,7 +45110,7 @@ const AI_ID_MAX_CHARACTERS = 80;
 const AI_TITLE_MAX_CHARACTERS = 120;
 const AI_DETAILS_MAX_CHARACTERS = 600;
 const AI_SUGGESTION_MAX_CHARACTERS = 240;
-async function analyzeWithAi(subject, config, apiKey, guidanceDocs = []) {
+async function analyzeWithAi(subject, config, apiKey, guidanceDocs = [], warningSink = (message) => core_warning(message)) {
     if (!config.ai.enabled || !apiKey) {
         return [];
     }
@@ -45173,13 +45173,13 @@ async function analyzeWithAi(subject, config, apiKey, guidanceDocs = []) {
             })
         });
         if (!response.ok) {
-            core_warning(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
+            warningSink(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
             return [];
         }
         const data = await response.json();
         const outputText = extractOutputText(data);
         if (!outputText) {
-            core_warning("OpenAI analysis returned no text output.");
+            warningSink("OpenAI analysis returned no text output.");
             return [];
         }
         const parsed = JSON.parse(outputText);
@@ -45191,7 +45191,7 @@ async function analyzeWithAi(subject, config, apiKey, guidanceDocs = []) {
             .filter((finding) => Boolean(finding));
     }
     catch (error) {
-        core_warning(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        warningSink(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -47771,8 +47771,8 @@ minimatch.unescape = unescape_unescape;
 ;// CONCATENATED MODULE: ./src/codeowners.ts
 
 
-async function loadCodeOwnerHints(octokit, owner, repo, ref, config, subject) {
-    const content = await loadFirstCodeOwnersFile(octokit, owner, repo, ref, config.repository.codeOwnersPaths);
+async function loadCodeOwnerHints(octokit, owner, repo, ref, config, subject, warningSink = (message) => core_warning(message)) {
+    const content = await loadFirstCodeOwnersFile(octokit, owner, repo, ref, config.repository.codeOwnersPaths, warningSink);
     if (!content) {
         return [];
     }
@@ -47825,7 +47825,7 @@ function ownersForPath(path, rules) {
     }
     return [];
 }
-async function loadFirstCodeOwnersFile(octokit, owner, repo, ref, paths) {
+async function loadFirstCodeOwnersFile(octokit, owner, repo, ref, paths, warningSink) {
     for (const path of paths) {
         try {
             const response = await octokit.rest.repos.getContent({
@@ -47842,7 +47842,7 @@ async function loadFirstCodeOwnersFile(octokit, owner, repo, ref, paths) {
         catch (error) {
             const status = codeowners_getErrorStatus(error);
             if (status !== 404) {
-                core_warning(`Failed to load CODEOWNERS from ${path}: ${codeowners_getErrorMessage(error)}`);
+                warningSink(`Failed to load CODEOWNERS from ${path}: ${codeowners_getErrorMessage(error)}`);
             }
         }
     }
@@ -48575,8 +48575,15 @@ function isKnownPostWhen(value) {
     return value === "always" || value === "findings" || value === "never";
 }
 
+;// CONCATENATED MODULE: ./src/finding-ids.ts
+const PROTECTED_FINDING_IDS = ["content.secret.possible"];
+const PROTECTED_FINDING_ID_SET = new Set(PROTECTED_FINDING_IDS);
+function isProtectedFindingId(id) {
+    return PROTECTED_FINDING_ID_SET.has(id);
+}
+
 ;// CONCATENATED MODULE: ./src/diagnostics.ts
-const PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
+
 function validateConfig(config) {
     const warnings = [];
     if (config.version !== 1) {
@@ -48625,10 +48632,10 @@ function rulePolicyWarnings(config) {
         }
     }
     for (const [id, severities] of overrides) {
-        if (disabled.has(id) && !PROTECTED_FINDING_IDS.has(id)) {
+        if (disabled.has(id) && !isProtectedFindingId(id)) {
             warnings.push(`rules.disabled includes "${id}" and rules.severityOverrides also configures it; disabled wins.`);
         }
-        if (PROTECTED_FINDING_IDS.has(id) && severities.some((severity) => severity !== "error")) {
+        if (isProtectedFindingId(id) && severities.some((severity) => severity !== "error")) {
             warnings.push(`rules.severityOverrides cannot downgrade protected finding "${id}"; default severity remains error.`);
         }
         if (severities.length > 1) {
@@ -48636,7 +48643,7 @@ function rulePolicyWarnings(config) {
         }
     }
     for (const id of disabled) {
-        if (PROTECTED_FINDING_IDS.has(id)) {
+        if (isProtectedFindingId(id)) {
             warnings.push(`rules.disabled cannot suppress protected finding "${id}"; it will still be reported.`);
         }
     }
@@ -48644,19 +48651,19 @@ function rulePolicyWarnings(config) {
 }
 
 ;// CONCATENATED MODULE: ./src/finding-policy.ts
+
 const SEVERITY_OVERRIDE_PRECEDENCE = ["error", "warning", "notice"];
-const finding_policy_PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
 function applyFindingPolicy(findings, config) {
     const disabled = new Set(config.rules.disabled);
     return findings
-        .filter((finding) => !disabled.has(finding.id) || finding_policy_PROTECTED_FINDING_IDS.has(finding.id))
+        .filter((finding) => !disabled.has(finding.id) || isProtectedFindingId(finding.id))
         .map((finding) => ({
         ...finding,
         severity: severityForFinding(finding, config) ?? finding.severity
     }));
 }
 function severityForFinding(finding, config) {
-    if (finding_policy_PROTECTED_FINDING_IDS.has(finding.id)) {
+    if (isProtectedFindingId(finding.id)) {
         return null;
     }
     for (const severity of SEVERITY_OVERRIDE_PRECEDENCE) {
@@ -48702,8 +48709,8 @@ const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(impo
 
 
 
-function createReportPayload(subject, findings, summary, config, skipReason, configWarnings = []) {
-    const safeConfigWarnings = configWarnings.map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+function createReportPayload(subject, findings, summary, config, skipReason, diagnostics = {}) {
+    const safeDiagnostics = sanitizeDiagnostics(diagnostics, config);
     return {
         version: 1,
         skipped: Boolean(skipReason),
@@ -48711,7 +48718,7 @@ function createReportPayload(subject, findings, summary, config, skipReason, con
         subject: subject ? sanitizeSubject(subject, config) : undefined,
         summary: summary ? redactReviewSummary(summary, config.security.secretPatterns) : undefined,
         findings: findings.map((finding) => redactFinding(finding, config.security.secretPatterns)),
-        diagnostics: safeConfigWarnings.length > 0 ? { configWarnings: safeConfigWarnings } : undefined
+        diagnostics: safeDiagnostics
     };
 }
 async function writeReportJson(path, payload) {
@@ -48739,6 +48746,43 @@ function sanitizeSubject(subject, config) {
             deletions: file.deletions
         }))
     };
+}
+function sanitizeDiagnostics(diagnostics, config) {
+    const normalized = Array.isArray(diagnostics)
+        ? { configWarnings: diagnostics, runtimeWarnings: [] }
+        : diagnostics;
+    const configWarnings = (normalized.configWarnings ?? []).map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+    const runtimeWarnings = (normalized.runtimeWarnings ?? []).map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+    if (configWarnings.length === 0 && runtimeWarnings.length === 0) {
+        return undefined;
+    }
+    return {
+        ...(configWarnings.length > 0 ? { configWarnings } : {}),
+        ...(runtimeWarnings.length > 0 ? { runtimeWarnings } : {})
+    };
+}
+
+;// CONCATENATED MODULE: ./src/run-diagnostics.ts
+
+
+function createRunDiagnostics(configWarnings = []) {
+    return {
+        configWarnings: [...configWarnings],
+        runtimeWarnings: []
+    };
+}
+function createRuntimeWarningSink(diagnostics, config) {
+    return (message) => {
+        const redacted = redactByPatterns(message, config.security.secretPatterns);
+        diagnostics.runtimeWarnings.push(redacted);
+        core_warning(redacted);
+    };
+}
+function setDiagnosticOutputs(diagnostics) {
+    setOutput("config-warnings-count", String(diagnostics.configWarnings.length));
+    setOutput("config-warnings", JSON.stringify(diagnostics.configWarnings));
+    setOutput("runtime-warnings-count", String(diagnostics.runtimeWarnings.length));
+    setOutput("runtime-warnings", JSON.stringify(diagnostics.runtimeWarnings));
 }
 
 ;// CONCATENATED MODULE: ./src/rules.ts
@@ -48968,8 +49012,9 @@ function matchesAnyRegex(value, patterns) {
 }
 
 ;// CONCATENATED MODULE: ./src/setup-summary.ts
-const setup_summary_PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
+
 function composeSetupSummary(options) {
+    const runtimeWarnings = options.runtimeWarnings ?? [];
     const rows = [
         ["Subject", options.subjectKind ? subjectLabel(options.subjectKind) : "No handled issue or pull request"],
         ["Config", options.configPath],
@@ -48980,6 +49025,7 @@ function composeSetupSummary(options) {
         ["JSON report", options.reportJsonPath || "Disabled"],
         ["Rule policy", rulePolicyState(options.config)],
         ["Configuration warnings", options.configWarnings.length === 0 ? "None" : String(options.configWarnings.length)],
+        ["Runtime warnings", runtimeWarnings.length === 0 ? "None" : String(runtimeWarnings.length)],
         ["AI analysis", aiState(options.config, options.openAiApiKeyProvided)],
         ["Failure policy", options.failOnFindings ? "Fail on warning or error findings" : "Advisory; workflow does not fail on findings"]
     ];
@@ -48998,6 +49044,16 @@ function composeSetupSummary(options) {
         }
         if (options.configWarnings.length > 10) {
             lines.push(`- ${options.configWarnings.length - 10} additional warning${options.configWarnings.length === 11 ? "" : "s"} hidden.`);
+        }
+    }
+    if (runtimeWarnings.length > 0) {
+        lines.push("");
+        lines.push("### Runtime warnings");
+        for (const warning of runtimeWarnings.slice(0, 10)) {
+            lines.push(`- ${warning}`);
+        }
+        if (runtimeWarnings.length > 10) {
+            lines.push(`- ${runtimeWarnings.length - 10} additional warning${runtimeWarnings.length === 11 ? "" : "s"} hidden.`);
         }
     }
     return lines.join("\n");
@@ -49030,8 +49086,8 @@ function aiState(config, openAiApiKeyProvided) {
         : "Configured, but no API key was provided";
 }
 function rulePolicyState(config) {
-    const disabledCount = config.rules.disabled.filter((id) => !setup_summary_PROTECTED_FINDING_IDS.has(id)).length;
-    const overrideCount = Object.entries(config.rules.severityOverrides).reduce((sum, [severity, ids]) => sum + ids.filter((id) => !setup_summary_PROTECTED_FINDING_IDS.has(id) || severity === "error").length, 0);
+    const disabledCount = config.rules.disabled.filter((id) => !isProtectedFindingId(id)).length;
+    const overrideCount = Object.entries(config.rules.severityOverrides).reduce((sum, [severity, ids]) => sum + ids.filter((id) => !isProtectedFindingId(id) || severity === "error").length, 0);
     if (disabledCount === 0 && overrideCount === 0) {
         return "Default";
     }
@@ -49045,7 +49101,8 @@ function setup_summary_escapeTable(value) {
 
 
 const REPORT_MARKER = "<!-- maintainer-firewall:report -->";
-async function buildSubject(octokit, context, duplicateSearchLimit) {
+const defaultWarningSink = (message) => core_warning(message);
+async function buildSubject(octokit, context, duplicateSearchLimit, warningSink = defaultWarningSink) {
     const payload = context.payload;
     const { owner, repo } = context.repo;
     if (context.eventName === "issues" && isIssuePayload(payload)) {
@@ -49053,7 +49110,7 @@ async function buildSubject(octokit, context, duplicateSearchLimit) {
         if (issue.pull_request) {
             return null;
         }
-        const duplicateCandidates = await findDuplicateIssues(octokit, owner, repo, issue.number, issue.title, duplicateSearchLimit);
+        const duplicateCandidates = await findDuplicateIssues(octokit, owner, repo, issue.number, issue.title, duplicateSearchLimit, warningSink);
         return {
             kind: "issue",
             number: issue.number,
@@ -49068,7 +49125,7 @@ async function buildSubject(octokit, context, duplicateSearchLimit) {
     if ((context.eventName === "pull_request" || context.eventName === "pull_request_target") &&
         isPullRequestPayload(payload)) {
         const pullRequest = payload.pull_request;
-        const changedFiles = await listPullRequestFiles(octokit, owner, repo, pullRequest.number);
+        const changedFiles = await listPullRequestFiles(octokit, owner, repo, pullRequest.number, warningSink);
         return {
             kind: "pull_request",
             number: pullRequest.number,
@@ -49085,7 +49142,7 @@ async function buildSubject(octokit, context, duplicateSearchLimit) {
     }
     return null;
 }
-async function listPullRequestFiles(octokit, owner, repo, pullNumber) {
+async function listPullRequestFiles(octokit, owner, repo, pullNumber, warningSink) {
     try {
         const changedFiles = await octokit.paginate(octokit.rest.pulls.listFiles, {
             owner,
@@ -49102,7 +49159,7 @@ async function listPullRequestFiles(octokit, owner, repo, pullNumber) {
         }));
     }
     catch (error) {
-        core_warning(`Could not list files for pull request #${pullNumber}: ${github_client_getErrorMessage(error)}. Continuing with title and body checks only.`);
+        warningSink(`Could not list files for pull request #${pullNumber}: ${github_client_getErrorMessage(error)}. Continuing with title and body checks only.`);
         return [];
     }
 }
@@ -49174,12 +49231,12 @@ async function upsertComment(octokit, owner, repo, issueNumber, body, updateExis
         body
     });
 }
-async function hasReportComment(octokit, owner, repo, issueNumber) {
+async function hasReportComment(octokit, owner, repo, issueNumber, warningSink = defaultWarningSink) {
     try {
         return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
     }
     catch (error) {
-        core_warning(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${github_client_getErrorMessage(error)}.`);
+        warningSink(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${github_client_getErrorMessage(error)}.`);
         return false;
     }
 }
@@ -49192,7 +49249,7 @@ async function findReportComment(octokit, owner, repo, issueNumber) {
     });
     return comments.find((comment) => comment.body?.includes(REPORT_MARKER));
 }
-async function findDuplicateIssues(octokit, owner, repo, currentNumber, title, limit) {
+async function findDuplicateIssues(octokit, owner, repo, currentNumber, title, limit, warningSink) {
     if (limit <= 0) {
         return [];
     }
@@ -49218,7 +49275,7 @@ async function findDuplicateIssues(octokit, owner, repo, currentNumber, title, l
             .slice(0, limit);
     }
     catch (error) {
-        core_warning(`Duplicate issue search failed: ${error instanceof Error ? error.message : String(error)}`);
+        warningSink(`Duplicate issue search failed: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
@@ -49317,6 +49374,7 @@ function github_client_getErrorMessage(error) {
 
 
 
+
 async function run() {
     const token = getInput("github-token", { required: true });
     const openAiApiKey = getInput("openai-api-key") || process.env.OPENAI_API_KEY;
@@ -49333,137 +49391,124 @@ async function run() {
     const config = configLoad.config;
     const configWarnings = [...configLoad.warnings, ...validateConfig(config)]
         .map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+    const diagnostics = createRunDiagnostics(configWarnings);
+    const warn = createRuntimeWarningSink(diagnostics, config);
     for (const warning of configWarnings) {
         core_warning(warning);
     }
-    const subject = await buildSubject(octokit, github_context, config.issue.duplicateSearchLimit);
+    const subject = await buildSubject(octokit, github_context, config.issue.duplicateSearchLimit, warn);
     if (!subject) {
         const skipReason = `event ${github_context.eventName} is not handled`;
-        setSkippedOutputs(skipReason, reportJsonPath, configWarnings);
+        setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
         const skippedReport = composeSkippedReport(null, skipReason, config);
-        const setupSummary = composeSetupSummary({
-            config,
-            configPath,
-            configWarnings,
-            dryRun,
-            emitAnnotations,
-            failOnFindings,
-            openAiApiKeyProvided: Boolean(openAiApiKey),
-            reportJsonPath,
-            subjectKind: null
-        });
         info(skippedReport);
-        if (writeStepSummary) {
-            await tryWrite("write step summary", async () => {
-                await summary_summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
-            });
-        }
         if (reportJsonPath) {
-            await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(null, [], null, config, skipReason, configWarnings)));
+            await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(null, [], null, config, skipReason, diagnostics)), warn);
         }
+        if (writeStepSummary) {
+            await writeSummary("write step summary", composeRunStepSummary(config, configPath, diagnostics, {
+                dryRun,
+                emitAnnotations,
+                failOnFindings,
+                openAiApiKeyProvided: Boolean(openAiApiKey),
+                reportJsonPath,
+                subjectKind: null
+            }, skippedReport), warn);
+        }
+        setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
         return;
     }
     const skipReason = getSkipReason(subject, config);
     if (skipReason) {
-        setSkippedOutputs(skipReason, reportJsonPath, configWarnings);
+        setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
         const skippedReport = composeSkippedReport(subject, skipReason, config);
-        const setupSummary = composeSetupSummary({
-            config,
-            configPath,
-            configWarnings,
-            dryRun,
-            emitAnnotations,
-            failOnFindings,
-            openAiApiKeyProvided: Boolean(openAiApiKey),
-            reportJsonPath,
-            subjectKind: subject.kind
-        });
         info(skippedReport);
-        if (writeStepSummary) {
-            await tryWrite("write step summary", async () => {
-                await summary_summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
-            });
-        }
-        if (reportJsonPath) {
-            await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason, configWarnings)));
-        }
         if (!dryRun) {
             if (config.labeling.enabled && config.labeling.removeStale) {
                 const staleLabels = staleManagedLabels(subject.labels, [], config);
                 if (staleLabels.length > 0) {
-                    await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+                    await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels), warn);
                 }
             }
-            const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number);
+            const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number, warn);
             if (shouldPostSkippedComment(config, hasExistingReport)) {
-                await tryWrite("upsert skipped comment", () => upsertComment(octokit, owner, repo, subject.number, skippedReport, config.comment.updateExisting));
+                await tryWrite("upsert skipped comment", () => upsertComment(octokit, owner, repo, subject.number, skippedReport, config.comment.updateExisting), warn);
             }
         }
+        if (reportJsonPath) {
+            await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason, diagnostics)), warn);
+        }
+        if (writeStepSummary) {
+            await writeSummary("write step summary", composeRunStepSummary(config, configPath, diagnostics, {
+                dryRun,
+                emitAnnotations,
+                failOnFindings,
+                openAiApiKeyProvided: Boolean(openAiApiKey),
+                reportJsonPath,
+                subjectKind: subject.kind
+            }, skippedReport), warn);
+        }
+        setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
         return;
     }
     const ruleFindings = analyzeSubject(subject, config);
     const hasPossibleSecret = ruleFindings.some((finding) => finding.id === "content.secret.possible");
     if (config.ai.enabled && !openAiApiKey) {
-        core_warning("AI analysis is enabled in config, but no OpenAI API key was provided. Running deterministic checks only.");
+        warn("AI analysis is enabled in config, but no OpenAI API key was provided. Running deterministic checks only.");
     }
     if (hasPossibleSecret && config.ai.enabled && openAiApiKey) {
-        core_warning("Skipping OpenAI analysis because a possible secret or credential was detected in the subject.");
+        warn("Skipping OpenAI analysis because a possible secret or credential was detected in the subject.");
     }
     const guidanceDocs = config.ai.enabled && openAiApiKey && !hasPossibleSecret
-        ? await loadRepositoryGuidance(octokit, owner, repo, configRef, config)
+        ? await loadRepositoryGuidance(octokit, owner, repo, configRef, config, warn)
         : [];
     const aiFindings = hasPossibleSecret
         ? []
-        : await analyzeWithAi(subject, config, openAiApiKey, guidanceDocs);
+        : await analyzeWithAi(subject, config, openAiApiKey, guidanceDocs, warn);
     const findings = applyFindingPolicy(dedupeFindings([...ruleFindings, ...aiFindings]), config);
     const routingHints = subject.kind === "pull_request"
-        ? await loadCodeOwnerHints(octokit, owner, repo, configRef, config, subject)
+        ? await loadCodeOwnerHints(octokit, owner, repo, configRef, config, subject, warn)
         : [];
     const summary = createReviewSummary(subject, findings, config, routingHints);
     const report = composeReport(subject, findings, config, summary);
-    const setupSummary = composeSetupSummary({
-        config,
-        configPath,
-        configWarnings,
-        dryRun,
-        emitAnnotations,
-        failOnFindings,
-        openAiApiKeyProvided: Boolean(openAiApiKey),
-        reportJsonPath,
-        subjectKind: subject.kind
-    });
-    setCompletedOutputs(summary, findings, reportJsonPath, configWarnings);
+    setCompletedOutputs(summary, findings, reportJsonPath, diagnostics);
     if (emitAnnotations) {
         emitFindingAnnotations(findings, config);
     }
     info(report);
-    if (writeStepSummary) {
-        await tryWrite("write step summary", async () => {
-            await summary_summary.addRaw(composeStepSummary(setupSummary, report), true).write();
-        });
-    }
     if (!dryRun) {
         if (summary.labels.length > 0) {
-            await tryWrite("apply labels", () => applyLabels(octokit, owner, repo, subject.number, summary.labels, config.labeling.createMissing));
+            await tryWrite("apply labels", () => applyLabels(octokit, owner, repo, subject.number, summary.labels, config.labeling.createMissing), warn);
         }
         if (config.labeling.enabled && config.labeling.removeStale) {
             const staleLabels = staleManagedLabels(subject.labels, summary.labels, config);
             if (staleLabels.length > 0) {
-                await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+                await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels), warn);
             }
         }
         const shouldUpdateExistingCleanReport = shouldRefreshExistingCleanReport(config, findings) &&
-            await hasReportComment(octokit, owner, repo, subject.number);
+            await hasReportComment(octokit, owner, repo, subject.number, warn);
         if (shouldPostComment(config, findings) || shouldUpdateExistingCleanReport) {
-            await tryWrite("upsert comment", () => upsertComment(octokit, owner, repo, subject.number, report, config.comment.updateExisting));
+            await tryWrite("upsert comment", () => upsertComment(octokit, owner, repo, subject.number, report, config.comment.updateExisting), warn);
         }
     }
     else {
         info("Dry run enabled. No labels or comments were written.");
     }
     if (reportJsonPath) {
-        await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(subject, findings, summary, config, undefined, configWarnings)));
+        await tryWrite("write JSON report", () => writeReportJson(reportJsonPath, createReportPayload(subject, findings, summary, config, undefined, diagnostics)), warn);
     }
+    if (writeStepSummary) {
+        await writeSummary("write step summary", composeRunStepSummary(config, configPath, diagnostics, {
+            dryRun,
+            emitAnnotations,
+            failOnFindings,
+            openAiApiKeyProvided: Boolean(openAiApiKey),
+            reportJsonPath,
+            subjectKind: subject.kind
+        }, report), warn);
+    }
+    setCompletedOutputs(summary, findings, reportJsonPath, diagnostics);
     if (failOnFindings && shouldFail(findings)) {
         setFailed("Maintainer Firewall produced warning or error findings.");
     }
@@ -49481,7 +49526,7 @@ function dedupeFindings(findings) {
     }
     return output;
 }
-function setSkippedOutputs(skipReason, reportJsonPath, configWarnings = []) {
+function setSkippedOutputs(skipReason, reportJsonPath, diagnostics) {
     setOutput("skipped", "true");
     setOutput("skip-reason", skipReason);
     setOutput("outcome", "skipped");
@@ -49490,10 +49535,9 @@ function setSkippedOutputs(skipReason, reportJsonPath, configWarnings = []) {
     setOutput("labels", "");
     setOutput("routing-hints", "[]");
     setOutput("report-json-path", reportJsonPath ?? "");
-    setOutput("config-warnings-count", String(configWarnings.length));
-    setOutput("config-warnings", JSON.stringify(configWarnings));
+    setDiagnosticOutputs(diagnostics);
 }
-function setCompletedOutputs(summary, findings, reportJsonPath, configWarnings = []) {
+function setCompletedOutputs(summary, findings, reportJsonPath, diagnostics) {
     setOutput("skipped", "false");
     setOutput("skip-reason", "");
     setOutput("outcome", summary.outcome);
@@ -49502,18 +49546,36 @@ function setCompletedOutputs(summary, findings, reportJsonPath, configWarnings =
     setOutput("labels", summary.labels.join(","));
     setOutput("routing-hints", JSON.stringify(summary.routingHints));
     setOutput("report-json-path", reportJsonPath ?? "");
-    setOutput("config-warnings-count", String(configWarnings.length));
-    setOutput("config-warnings", JSON.stringify(configWarnings));
+    setDiagnosticOutputs(diagnostics);
 }
 function parseBoolean(value) {
     return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
-async function tryWrite(operation, write) {
+async function writeSummary(operation, summary, warningSink) {
+    await tryWrite(operation, async () => {
+        await summary_summary.addRaw(summary, true).write();
+    }, warningSink);
+}
+function composeRunStepSummary(config, configPath, diagnostics, options, report) {
+    return composeStepSummary(composeSetupSummary({
+        config,
+        configPath,
+        configWarnings: diagnostics.configWarnings,
+        runtimeWarnings: diagnostics.runtimeWarnings,
+        dryRun: options.dryRun,
+        emitAnnotations: options.emitAnnotations,
+        failOnFindings: options.failOnFindings,
+        openAiApiKeyProvided: options.openAiApiKeyProvided,
+        reportJsonPath: options.reportJsonPath,
+        subjectKind: options.subjectKind
+    }), report);
+}
+async function tryWrite(operation, write, warningSink = (message) => core_warning(message)) {
     try {
         await write();
     }
     catch (error) {
-        core_warning(`Could not ${operation}: ${error instanceof Error ? error.message : String(error)}`);
+        warningSink(`Could not ${operation}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 run().catch((error) => {

@@ -52,6 +52,10 @@ outputs:
     description: Number of configuration diagnostics emitted while loading and validating Maintainer Firewall config.
   config-warnings:
     description: JSON array of configuration diagnostics emitted while loading and validating Maintainer Firewall config.
+  runtime-warnings-count:
+    description: Number of runtime diagnostics emitted while the action performed best-effort GitHub, AI, summary, or report operations.
+  runtime-warnings:
+    description: JSON array of runtime diagnostics emitted while the action performed best-effort GitHub, AI, summary, or report operations.
 runs:
   using: node20
   main: dist/index.js

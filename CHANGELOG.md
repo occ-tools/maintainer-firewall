@@ -2,6 +2,14 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.6.0 - Runtime Diagnostics Visibility
+
+- Captures runtime warnings from AI fallback, repository guidance loading, CODEOWNERS loading, GitHub write operations, comment lookups, JSON report writes, and step-summary writes.
+- Adds `runtime-warnings-count` and `runtime-warnings` outputs for downstream workflow steps.
+- Adds runtime diagnostics to structured JSON reports when `report-json-path` is configured.
+- Shows runtime warning counts and warning details in the Actions step summary setup table.
+- Centralizes protected finding IDs so diagnostics, setup summaries, and finding policy cannot drift.
+
 ## 0.5.0 - Configuration Diagnostics Visibility
 
 - Captures configuration loading and validation warnings as first-class diagnostics.

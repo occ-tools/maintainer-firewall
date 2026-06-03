@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import type { Finding, FirewallConfig, LabelKey, RepositoryGuidanceDoc, Subject } from "./types.js";
 import { summarizeGuidanceForPrompt } from "./guidance.js";
 import { redactByPatterns } from "./redaction.js";
+import type { RuntimeWarningSink } from "./run-diagnostics.js";
 import { truncate } from "./text.js";
 
 const RESPONSE_SCHEMA = {
@@ -47,7 +48,8 @@ export async function analyzeWithAi(
   subject: Subject,
   config: FirewallConfig,
   apiKey: string | undefined,
-  guidanceDocs: RepositoryGuidanceDoc[] = []
+  guidanceDocs: RepositoryGuidanceDoc[] = [],
+  warningSink: RuntimeWarningSink = (message) => core.warning(message)
 ): Promise<Finding[]> {
   if (!config.ai.enabled || !apiKey) {
     return [];
@@ -114,14 +116,14 @@ export async function analyzeWithAi(
     });
 
     if (!response.ok) {
-      core.warning(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
+      warningSink(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
       return [];
     }
 
     const data = await response.json() as ResponsesApiResult;
     const outputText = extractOutputText(data);
     if (!outputText) {
-      core.warning("OpenAI analysis returned no text output.");
+      warningSink("OpenAI analysis returned no text output.");
       return [];
     }
 
@@ -134,7 +136,7 @@ export async function analyzeWithAi(
       .map((finding, index) => normalizeAiFinding(finding, index))
       .filter((finding): finding is Finding => Boolean(finding));
   } catch (error) {
-    core.warning(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+    warningSink(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 }

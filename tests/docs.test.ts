@@ -33,7 +33,7 @@ describe("project documentation", () => {
       "examples/workflow.collaborative.yml",
       "examples/workflow.strict.yml"
     ]) {
-      expect(readFileSync(path, "utf8")).toContain("wangjiehu/maintainer-firewall@v0.5.0");
+      expect(readFileSync(path, "utf8")).toContain("wangjiehu/maintainer-firewall@v0.6.0");
     }
   });
 });

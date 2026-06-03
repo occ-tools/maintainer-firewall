@@ -1,7 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { RunDiagnostics } from "./run-diagnostics.js";
 import type { Finding, FirewallConfig, ReviewSummary, Subject } from "./types.js";
 import { redactByPatterns, redactFinding, redactReviewSummary } from "./redaction.js";
+
+type DiagnosticsInput = Partial<RunDiagnostics> | string[];
 
 export interface ReportPayload {
   version: 1;
@@ -24,7 +27,8 @@ export interface ReportPayload {
   summary?: ReviewSummary;
   findings: Finding[];
   diagnostics?: {
-    configWarnings: string[];
+    configWarnings?: string[];
+    runtimeWarnings?: string[];
   };
 }
 
@@ -34,9 +38,9 @@ export function createReportPayload(
   summary: ReviewSummary | null,
   config: FirewallConfig,
   skipReason?: string,
-  configWarnings: string[] = []
+  diagnostics: DiagnosticsInput = {}
 ): ReportPayload {
-  const safeConfigWarnings = configWarnings.map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+  const safeDiagnostics = sanitizeDiagnostics(diagnostics, config);
   return {
     version: 1,
     skipped: Boolean(skipReason),
@@ -44,7 +48,7 @@ export function createReportPayload(
     subject: subject ? sanitizeSubject(subject, config) : undefined,
     summary: summary ? redactReviewSummary(summary, config.security.secretPatterns) : undefined,
     findings: findings.map((finding) => redactFinding(finding, config.security.secretPatterns)),
-    diagnostics: safeConfigWarnings.length > 0 ? { configWarnings: safeConfigWarnings } : undefined
+    diagnostics: safeDiagnostics
   };
 }
 
@@ -75,5 +79,29 @@ function sanitizeSubject(subject: Subject, config: FirewallConfig): NonNullable<
       additions: file.additions,
       deletions: file.deletions
     }))
+  };
+}
+
+function sanitizeDiagnostics(
+  diagnostics: DiagnosticsInput,
+  config: FirewallConfig
+): ReportPayload["diagnostics"] {
+  const normalized = Array.isArray(diagnostics)
+    ? { configWarnings: diagnostics, runtimeWarnings: [] }
+    : diagnostics;
+  const configWarnings = (normalized.configWarnings ?? []).map((warning) =>
+    redactByPatterns(warning, config.security.secretPatterns)
+  );
+  const runtimeWarnings = (normalized.runtimeWarnings ?? []).map((warning) =>
+    redactByPatterns(warning, config.security.secretPatterns)
+  );
+
+  if (configWarnings.length === 0 && runtimeWarnings.length === 0) {
+    return undefined;
+  }
+
+  return {
+    ...(configWarnings.length > 0 ? { configWarnings } : {}),
+    ...(runtimeWarnings.length > 0 ? { runtimeWarnings } : {})
   };
 }

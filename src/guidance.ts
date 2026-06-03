@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import type * as github from "@actions/github";
 import type { FirewallConfig, RepositoryGuidanceDoc } from "./types.js";
+import type { RuntimeWarningSink } from "./run-diagnostics.js";
 import { truncate } from "./text.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -12,7 +13,8 @@ export async function loadRepositoryGuidance(
   owner: string,
   repo: string,
   ref: string | undefined,
-  config: FirewallConfig
+  config: FirewallConfig,
+  warningSink: RuntimeWarningSink = (message) => core.warning(message)
 ): Promise<RepositoryGuidanceDoc[]> {
   const docs: RepositoryGuidanceDoc[] = [];
   const seen = new Set<string>();
@@ -27,7 +29,7 @@ export async function loadRepositoryGuidance(
       break;
     }
 
-    const loaded = await loadGuidancePath(octokit, owner, repo, ref, path);
+    const loaded = await loadGuidancePath(octokit, owner, repo, ref, path, warningSink);
     for (const doc of loaded) {
       if (remainingCharacters <= 0) {
         break;
@@ -73,7 +75,8 @@ async function loadGuidancePath(
   owner: string,
   repo: string,
   ref: string | undefined,
-  path: string
+  path: string,
+  warningSink: RuntimeWarningSink
 ): Promise<RepositoryGuidanceDoc[]> {
   try {
     const response = await octokit.rest.repos.getContent({
@@ -89,7 +92,7 @@ async function loadGuidancePath(
         .slice(0, 20);
 
       const nested = await Promise.all(
-        children.map((entry) => loadGuidancePath(octokit, owner, repo, ref, entry.path))
+        children.map((entry) => loadGuidancePath(octokit, owner, repo, ref, entry.path, warningSink))
       );
       return nested.flat();
     }
@@ -111,7 +114,7 @@ async function loadGuidancePath(
   } catch (error) {
     const status = getErrorStatus(error);
     if (status !== 404) {
-      core.warning(`Failed to load repository guidance ${path}: ${getErrorMessage(error)}`);
+      warningSink(`Failed to load repository guidance ${path}: ${getErrorMessage(error)}`);
     }
 
     return [];

@@ -1,6 +1,5 @@
 import type { FirewallConfig } from "./types.js";
-
-const PROTECTED_FINDING_IDS = new Set(["content.secret.possible"]);
+import { isProtectedFindingId } from "./finding-ids.js";
 
 export function validateConfig(config: FirewallConfig): string[] {
   const warnings: string[] = [];
@@ -60,11 +59,11 @@ function rulePolicyWarnings(config: FirewallConfig): string[] {
   }
 
   for (const [id, severities] of overrides) {
-    if (disabled.has(id) && !PROTECTED_FINDING_IDS.has(id)) {
+    if (disabled.has(id) && !isProtectedFindingId(id)) {
       warnings.push(`rules.disabled includes "${id}" and rules.severityOverrides also configures it; disabled wins.`);
     }
 
-    if (PROTECTED_FINDING_IDS.has(id) && severities.some((severity) => severity !== "error")) {
+    if (isProtectedFindingId(id) && severities.some((severity) => severity !== "error")) {
       warnings.push(`rules.severityOverrides cannot downgrade protected finding "${id}"; default severity remains error.`);
     }
 
@@ -74,7 +73,7 @@ function rulePolicyWarnings(config: FirewallConfig): string[] {
   }
 
   for (const id of disabled) {
-    if (PROTECTED_FINDING_IDS.has(id)) {
+    if (isProtectedFindingId(id)) {
       warnings.push(`rules.disabled cannot suppress protected finding "${id}"; it will still be reported.`);
     }
   }

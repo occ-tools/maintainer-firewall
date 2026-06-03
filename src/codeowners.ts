@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import { minimatch } from "minimatch";
 import type * as github from "@actions/github";
 import type { FirewallConfig, PullRequestSubject, RoutingHint } from "./types.js";
+import type { RuntimeWarningSink } from "./run-diagnostics.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 
@@ -16,9 +17,10 @@ export async function loadCodeOwnerHints(
   repo: string,
   ref: string | undefined,
   config: FirewallConfig,
-  subject: PullRequestSubject
+  subject: PullRequestSubject,
+  warningSink: RuntimeWarningSink = (message) => core.warning(message)
 ): Promise<RoutingHint[]> {
-  const content = await loadFirstCodeOwnersFile(octokit, owner, repo, ref, config.repository.codeOwnersPaths);
+  const content = await loadFirstCodeOwnersFile(octokit, owner, repo, ref, config.repository.codeOwnersPaths, warningSink);
   if (!content) {
     return [];
   }
@@ -85,7 +87,8 @@ async function loadFirstCodeOwnersFile(
   owner: string,
   repo: string,
   ref: string | undefined,
-  paths: string[]
+  paths: string[],
+  warningSink: RuntimeWarningSink
 ): Promise<string | null> {
   for (const path of paths) {
     try {
@@ -103,7 +106,7 @@ async function loadFirstCodeOwnersFile(
     } catch (error) {
       const status = getErrorStatus(error);
       if (status !== 404) {
-        core.warning(`Failed to load CODEOWNERS from ${path}: ${getErrorMessage(error)}`);
+        warningSink(`Failed to load CODEOWNERS from ${path}: ${getErrorMessage(error)}`);
       }
     }
   }

@@ -20,10 +20,17 @@ import { staleManagedLabels } from "./labels.js";
 import { createReportPayload, writeReportJson } from "./report.js";
 import { redactByPatterns } from "./redaction.js";
 import { createReviewSummary } from "./review.js";
+import {
+  createRunDiagnostics,
+  createRuntimeWarningSink,
+  setDiagnosticOutputs,
+  type RunDiagnostics,
+  type RuntimeWarningSink
+} from "./run-diagnostics.js";
 import { analyzeSubject } from "./rules.js";
 import { composeSetupSummary, composeStepSummary } from "./setup-summary.js";
 import { applyLabels, buildSubject, getConfigRef, hasReportComment, removeLabels, upsertComment } from "./github-client.js";
-import type { Finding, ReviewSummary } from "./types.js";
+import type { Finding, FirewallConfig, ReviewSummary, Subject } from "./types.js";
 
 async function run(): Promise<void> {
   const token = core.getInput("github-token", { required: true });
@@ -43,80 +50,62 @@ async function run(): Promise<void> {
   const config = configLoad.config;
   const configWarnings = [...configLoad.warnings, ...validateConfig(config)]
     .map((warning) => redactByPatterns(warning, config.security.secretPatterns));
+  const diagnostics = createRunDiagnostics(configWarnings);
+  const warn = createRuntimeWarningSink(diagnostics, config);
   for (const warning of configWarnings) {
     core.warning(warning);
   }
 
-  const subject = await buildSubject(octokit, github.context, config.issue.duplicateSearchLimit);
+  const subject = await buildSubject(octokit, github.context, config.issue.duplicateSearchLimit, warn);
 
   if (!subject) {
     const skipReason = `event ${github.context.eventName} is not handled`;
-    setSkippedOutputs(skipReason, reportJsonPath, configWarnings);
+    setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
     const skippedReport = composeSkippedReport(null, skipReason, config);
-    const setupSummary = composeSetupSummary({
-      config,
-      configPath,
-      configWarnings,
-      dryRun,
-      emitAnnotations,
-      failOnFindings,
-      openAiApiKeyProvided: Boolean(openAiApiKey),
-      reportJsonPath,
-      subjectKind: null
-    });
     core.info(skippedReport);
-    if (writeStepSummary) {
-      await tryWrite("write step summary", async () => {
-        await core.summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
-      });
-    }
 
     if (reportJsonPath) {
-      await tryWrite("write JSON report", () =>
-        writeReportJson(reportJsonPath, createReportPayload(null, [], null, config, skipReason, configWarnings))
+      await tryWrite(
+        "write JSON report",
+        () => writeReportJson(reportJsonPath, createReportPayload(null, [], null, config, skipReason, diagnostics)),
+        warn
       );
     }
 
+    if (writeStepSummary) {
+      await writeSummary(
+        "write step summary",
+        composeRunStepSummary(config, configPath, diagnostics, {
+          dryRun,
+          emitAnnotations,
+          failOnFindings,
+          openAiApiKeyProvided: Boolean(openAiApiKey),
+          reportJsonPath,
+          subjectKind: null
+        }, skippedReport),
+        warn
+      );
+    }
+
+    setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
     return;
   }
 
   const skipReason = getSkipReason(subject, config);
   if (skipReason) {
-    setSkippedOutputs(skipReason, reportJsonPath, configWarnings);
+    setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
     const skippedReport = composeSkippedReport(subject, skipReason, config);
-    const setupSummary = composeSetupSummary({
-      config,
-      configPath,
-      configWarnings,
-      dryRun,
-      emitAnnotations,
-      failOnFindings,
-      openAiApiKeyProvided: Boolean(openAiApiKey),
-      reportJsonPath,
-      subjectKind: subject.kind
-    });
     core.info(skippedReport);
-    if (writeStepSummary) {
-      await tryWrite("write step summary", async () => {
-        await core.summary.addRaw(composeStepSummary(setupSummary, skippedReport), true).write();
-      });
-    }
-
-    if (reportJsonPath) {
-      await tryWrite("write JSON report", () =>
-        writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason, configWarnings))
-      );
-    }
 
     if (!dryRun) {
       if (config.labeling.enabled && config.labeling.removeStale) {
         const staleLabels = staleManagedLabels(subject.labels, [], config);
         if (staleLabels.length > 0) {
-          await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+          await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels), warn);
         }
       }
 
-      const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number);
+      const hasExistingReport = await hasReportComment(octokit, owner, repo, subject.number, warn);
       if (shouldPostSkippedComment(config, hasExistingReport)) {
         await tryWrite("upsert skipped comment", () => upsertComment(
           octokit,
@@ -125,76 +114,86 @@ async function run(): Promise<void> {
           subject.number,
           skippedReport,
           config.comment.updateExisting
-        ));
+        ), warn);
       }
     }
 
+    if (reportJsonPath) {
+      await tryWrite(
+        "write JSON report",
+        () => writeReportJson(reportJsonPath, createReportPayload(subject, [], null, config, skipReason, diagnostics)),
+        warn
+      );
+    }
+
+    if (writeStepSummary) {
+      await writeSummary(
+        "write step summary",
+        composeRunStepSummary(config, configPath, diagnostics, {
+          dryRun,
+          emitAnnotations,
+          failOnFindings,
+          openAiApiKeyProvided: Boolean(openAiApiKey),
+          reportJsonPath,
+          subjectKind: subject.kind
+        }, skippedReport),
+        warn
+      );
+    }
+
+    setSkippedOutputs(skipReason, reportJsonPath, diagnostics);
     return;
   }
 
   const ruleFindings = analyzeSubject(subject, config);
   const hasPossibleSecret = ruleFindings.some((finding) => finding.id === "content.secret.possible");
   if (config.ai.enabled && !openAiApiKey) {
-    core.warning("AI analysis is enabled in config, but no OpenAI API key was provided. Running deterministic checks only.");
+    warn("AI analysis is enabled in config, but no OpenAI API key was provided. Running deterministic checks only.");
   }
 
   if (hasPossibleSecret && config.ai.enabled && openAiApiKey) {
-    core.warning("Skipping OpenAI analysis because a possible secret or credential was detected in the subject.");
+    warn("Skipping OpenAI analysis because a possible secret or credential was detected in the subject.");
   }
 
   const guidanceDocs = config.ai.enabled && openAiApiKey && !hasPossibleSecret
-    ? await loadRepositoryGuidance(octokit, owner, repo, configRef, config)
+    ? await loadRepositoryGuidance(octokit, owner, repo, configRef, config, warn)
     : [];
   const aiFindings = hasPossibleSecret
     ? []
-    : await analyzeWithAi(subject, config, openAiApiKey, guidanceDocs);
+    : await analyzeWithAi(subject, config, openAiApiKey, guidanceDocs, warn);
   const findings = applyFindingPolicy(dedupeFindings([...ruleFindings, ...aiFindings]), config);
   const routingHints = subject.kind === "pull_request"
-    ? await loadCodeOwnerHints(octokit, owner, repo, configRef, config, subject)
+    ? await loadCodeOwnerHints(octokit, owner, repo, configRef, config, subject, warn)
     : [];
   const summary = createReviewSummary(subject, findings, config, routingHints);
   const report = composeReport(subject, findings, config, summary);
-  const setupSummary = composeSetupSummary({
-    config,
-    configPath,
-    configWarnings,
-    dryRun,
-    emitAnnotations,
-    failOnFindings,
-    openAiApiKeyProvided: Boolean(openAiApiKey),
-    reportJsonPath,
-    subjectKind: subject.kind
-  });
 
-  setCompletedOutputs(summary, findings, reportJsonPath, configWarnings);
+  setCompletedOutputs(summary, findings, reportJsonPath, diagnostics);
   if (emitAnnotations) {
     emitFindingAnnotations(findings, config);
   }
 
   core.info(report);
-  if (writeStepSummary) {
-    await tryWrite("write step summary", async () => {
-      await core.summary.addRaw(composeStepSummary(setupSummary, report), true).write();
-    });
-  }
 
   if (!dryRun) {
     if (summary.labels.length > 0) {
-      await tryWrite("apply labels", () =>
-        applyLabels(octokit, owner, repo, subject.number, summary.labels, config.labeling.createMissing)
+      await tryWrite(
+        "apply labels",
+        () => applyLabels(octokit, owner, repo, subject.number, summary.labels, config.labeling.createMissing),
+        warn
       );
     }
 
     if (config.labeling.enabled && config.labeling.removeStale) {
       const staleLabels = staleManagedLabels(subject.labels, summary.labels, config);
       if (staleLabels.length > 0) {
-        await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels));
+        await tryWrite("remove stale labels", () => removeLabels(octokit, owner, repo, subject.number, staleLabels), warn);
       }
     }
 
     const shouldUpdateExistingCleanReport =
       shouldRefreshExistingCleanReport(config, findings) &&
-      await hasReportComment(octokit, owner, repo, subject.number);
+      await hasReportComment(octokit, owner, repo, subject.number, warn);
 
     if (shouldPostComment(config, findings) || shouldUpdateExistingCleanReport) {
       await tryWrite("upsert comment", () => upsertComment(
@@ -204,18 +203,36 @@ async function run(): Promise<void> {
         subject.number,
         report,
         config.comment.updateExisting
-      ));
+      ), warn);
     }
   } else {
     core.info("Dry run enabled. No labels or comments were written.");
   }
 
   if (reportJsonPath) {
-    await tryWrite("write JSON report", () =>
-      writeReportJson(reportJsonPath, createReportPayload(subject, findings, summary, config, undefined, configWarnings))
+    await tryWrite(
+      "write JSON report",
+      () => writeReportJson(reportJsonPath, createReportPayload(subject, findings, summary, config, undefined, diagnostics)),
+      warn
     );
   }
 
+  if (writeStepSummary) {
+    await writeSummary(
+      "write step summary",
+      composeRunStepSummary(config, configPath, diagnostics, {
+        dryRun,
+        emitAnnotations,
+        failOnFindings,
+        openAiApiKeyProvided: Boolean(openAiApiKey),
+        reportJsonPath,
+        subjectKind: subject.kind
+      }, report),
+      warn
+    );
+  }
+
+  setCompletedOutputs(summary, findings, reportJsonPath, diagnostics);
   if (failOnFindings && shouldFail(findings)) {
     core.setFailed("Maintainer Firewall produced warning or error findings.");
   }
@@ -238,7 +255,7 @@ function dedupeFindings(findings: ReturnType<typeof analyzeSubject>): ReturnType
   return output;
 }
 
-function setSkippedOutputs(skipReason: string, reportJsonPath?: string, configWarnings: string[] = []): void {
+function setSkippedOutputs(skipReason: string, reportJsonPath: string | undefined, diagnostics: RunDiagnostics): void {
   core.setOutput("skipped", "true");
   core.setOutput("skip-reason", skipReason);
   core.setOutput("outcome", "skipped");
@@ -247,15 +264,14 @@ function setSkippedOutputs(skipReason: string, reportJsonPath?: string, configWa
   core.setOutput("labels", "");
   core.setOutput("routing-hints", "[]");
   core.setOutput("report-json-path", reportJsonPath ?? "");
-  core.setOutput("config-warnings-count", String(configWarnings.length));
-  core.setOutput("config-warnings", JSON.stringify(configWarnings));
+  setDiagnosticOutputs(diagnostics);
 }
 
 function setCompletedOutputs(
   summary: ReviewSummary,
   findings: Finding[],
-  reportJsonPath?: string,
-  configWarnings: string[] = []
+  reportJsonPath: string | undefined,
+  diagnostics: RunDiagnostics
 ): void {
   core.setOutput("skipped", "false");
   core.setOutput("skip-reason", "");
@@ -265,19 +281,56 @@ function setCompletedOutputs(
   core.setOutput("labels", summary.labels.join(","));
   core.setOutput("routing-hints", JSON.stringify(summary.routingHints));
   core.setOutput("report-json-path", reportJsonPath ?? "");
-  core.setOutput("config-warnings-count", String(configWarnings.length));
-  core.setOutput("config-warnings", JSON.stringify(configWarnings));
+  setDiagnosticOutputs(diagnostics);
 }
 
 function parseBoolean(value: string): boolean {
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
-async function tryWrite(operation: string, write: () => Promise<void>): Promise<void> {
+async function writeSummary(operation: string, summary: string, warningSink: RuntimeWarningSink): Promise<void> {
+  await tryWrite(operation, async () => {
+    await core.summary.addRaw(summary, true).write();
+  }, warningSink);
+}
+
+function composeRunStepSummary(
+  config: FirewallConfig,
+  configPath: string,
+  diagnostics: RunDiagnostics,
+  options: {
+    dryRun: boolean;
+    emitAnnotations: boolean;
+    failOnFindings: boolean;
+    openAiApiKeyProvided: boolean;
+    reportJsonPath: string;
+    subjectKind: Subject["kind"] | null;
+  },
+  report: string
+): string {
+  return composeStepSummary(composeSetupSummary({
+    config,
+    configPath,
+    configWarnings: diagnostics.configWarnings,
+    runtimeWarnings: diagnostics.runtimeWarnings,
+    dryRun: options.dryRun,
+    emitAnnotations: options.emitAnnotations,
+    failOnFindings: options.failOnFindings,
+    openAiApiKeyProvided: options.openAiApiKeyProvided,
+    reportJsonPath: options.reportJsonPath,
+    subjectKind: options.subjectKind
+  }), report);
+}
+
+async function tryWrite(
+  operation: string,
+  write: () => Promise<void>,
+  warningSink: RuntimeWarningSink = (message) => core.warning(message)
+): Promise<void> {
   try {
     await write();
   } catch (error) {
-    core.warning(`Could not ${operation}: ${error instanceof Error ? error.message : String(error)}`);
+    warningSink(`Could not ${operation}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

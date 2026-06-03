@@ -80,11 +80,17 @@ describe("createReportPayload", () => {
       duplicateCandidates: []
     };
 
-    const payload = createReportPayload(subject, [], null, defaultConfig, undefined, [
-      `config.rules.disabled contains ${secret}`
-    ]);
+    const payload = createReportPayload(subject, [], null, defaultConfig, undefined, {
+      configWarnings: [
+        `config.rules.disabled contains ${secret}`
+      ],
+      runtimeWarnings: [
+        `Could not apply labels: ${secret}`
+      ]
+    });
 
     expect(payload.diagnostics?.configWarnings).toEqual(["config.rules.disabled contains [redacted]"]);
+    expect(payload.diagnostics?.runtimeWarnings).toEqual(["Could not apply labels: [redacted]"]);
     expect(JSON.stringify(payload)).not.toContain(secret);
   });
 });

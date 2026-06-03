@@ -85,6 +85,18 @@ Use the schema line for editor guidance:
 version: 1
 ```
 
+## Runtime Warnings
+
+Runtime warnings cover best-effort operations that can fail without stopping deterministic triage, such as AI analysis fallback, repository guidance loading, CODEOWNERS loading, label writes, comment writes, JSON report writes, and step-summary writes.
+
+Check the setup table first:
+
+- `Runtime warnings` should be `None` on a clean run.
+- `runtime-warnings-count` is useful for downstream workflow checks.
+- `runtime-warnings` contains the redacted warning messages as JSON.
+
+If labels or comments did not change but the report exists, runtime warnings usually point to a permission issue, missing label permission, unavailable GitHub API endpoint, or a write path problem.
+
 ## Finding Seems Wrong
 
 Use the finding ID shown in the report table and check [Rules](RULES.md).

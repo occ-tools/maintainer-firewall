@@ -9,6 +9,7 @@
 - Stable finding IDs surfaced in comments, annotations, and JSON reports.
 - Suppression and severity override controls keyed by exact finding ID.
 - Configuration diagnostics surfaced in step summaries, outputs, and structured JSON reports.
+- Runtime diagnostics surfaced in step summaries, outputs, and structured JSON reports.
 - CODEOWNERS-aware routing hints for pull requests.
 - Repository guidance loading from `CONTRIBUTING.md`, pull request templates, and issue templates.
 - Optional OpenAI-assisted semantic review with timeout, truncation, response normalization, and redaction.
