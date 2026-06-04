@@ -102,7 +102,7 @@ describe("composeReport", () => {
   it("escapes finding IDs inside the details table", () => {
     const findings: Finding[] = [
       {
-        id: "ai.bad`id|value",
+        id: "ai.bad\\id`|value",
         severity: "notice",
         title: "AI finding",
         details: "Needs a maintainer look.",
@@ -113,7 +113,7 @@ describe("composeReport", () => {
 
     const report = composeReport(subject, findings, defaultConfig, summary);
 
-    expect(report).toContain("ai<br>`ai.bad'id\\|value`");
+    expect(report).toContain("ai<br>`ai.bad\\\\id'\\|value`");
   });
 });
 

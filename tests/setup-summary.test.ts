@@ -75,7 +75,7 @@ describe("composeSetupSummary", () => {
           enabled: true
         }
       },
-      configPath: "configs/firewall|prod\n.yml",
+      configPath: "configs\\firewall|prod\n.yml",
       configWarnings: [],
       dryRun: false,
       emitAnnotations: false,
@@ -86,7 +86,7 @@ describe("composeSetupSummary", () => {
     });
 
     expect(summary).toContain("| Subject | No handled issue or pull request |");
-    expect(summary).toContain("| Config | configs/firewall\\|prod .yml |");
+    expect(summary).toContain("| Config | configs\\\\firewall\\|prod .yml |");
     expect(summary).toContain("| Run mode | Live writes allowed |");
     expect(summary).toContain("| Comments | Disabled |");
     expect(summary).toContain("| Labels | Disabled |");

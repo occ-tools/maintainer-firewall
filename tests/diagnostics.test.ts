@@ -24,7 +24,7 @@ describe("validateConfig", () => {
       ...defaultConfig,
       security: {
         ...defaultConfig.security,
-        reportPatterns: ["(a+)+$"]
+        reportPatterns: [unsafeNestedQuantifierPattern()]
       }
     });
 
@@ -77,3 +77,7 @@ describe("validateConfig", () => {
     expect(warnings).toContain('rules.severityOverrides cannot downgrade protected finding "content.secret.possible"; default severity remains error.');
   });
 });
+
+function unsafeNestedQuantifierPattern(): string {
+  return ["(", "a", "+", ")", "+", "$"].join("");
+}

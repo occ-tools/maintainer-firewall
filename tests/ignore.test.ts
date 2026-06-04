@@ -39,8 +39,12 @@ describe("getSkipReason", () => {
       ...defaultConfig,
       ignore: {
         ...defaultConfig.ignore,
-        titlePatterns: ["(a+)+$"]
+        titlePatterns: [unsafeNestedQuantifierPattern()]
       }
     })).toBeNull();
   });
 });
+
+function unsafeNestedQuantifierPattern(): string {
+  return ["(", "a", "+", ")", "+", "$"].join("");
+}

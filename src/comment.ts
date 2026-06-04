@@ -131,7 +131,7 @@ export function shouldPostSkippedComment(config: FirewallConfig, hasExistingRepo
 }
 
 function escapeTable(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\n/g, "<br>");
+  return escapeMarkdownTableCell(value, "<br>");
 }
 
 function escapeInlineCode(value: string): string {
@@ -139,7 +139,14 @@ function escapeInlineCode(value: string): string {
 }
 
 function escapeMarkdownLine(value: string): string {
-  return value.replace(/\n/g, " ").replace(/\|/g, "\\|");
+  return escapeMarkdownTableCell(value, " ");
+}
+
+function escapeMarkdownTableCell(value: string, newlineReplacement: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, newlineReplacement);
 }
 
 function appendPassedChecks(lines: string[], config: FirewallConfig, summary: ReviewSummary): void {

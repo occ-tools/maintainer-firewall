@@ -45075,7 +45075,10 @@ function rulePolicyState(config) {
     return `${disabledCount} disabled; ${overrideCount} severity override${overrideCount === 1 ? "" : "s"}`;
 }
 function escapeTable(value) {
-    return value.replace(/\|/g, "\\|").replace(/\n/g, " ");
+    return value
+        .replace(/\\/g, "\\\\")
+        .replace(/\|/g, "\\|")
+        .replace(/\n/g, " ");
 }
 
 ;// CONCATENATED MODULE: ./src/action-runtime.ts
@@ -48486,13 +48489,19 @@ function shouldPostSkippedComment(config, hasExistingReport) {
     return config.comment.updateExisting && hasExistingReport;
 }
 function comment_escapeTable(value) {
-    return value.replace(/\|/g, "\\|").replace(/\n/g, "<br>");
+    return escapeMarkdownTableCell(value, "<br>");
 }
 function escapeInlineCode(value) {
     return value.replace(/`/g, "'");
 }
 function escapeMarkdownLine(value) {
-    return value.replace(/\n/g, " ").replace(/\|/g, "\\|");
+    return escapeMarkdownTableCell(value, " ");
+}
+function escapeMarkdownTableCell(value, newlineReplacement) {
+    return value
+        .replace(/\\/g, "\\\\")
+        .replace(/\|/g, "\\|")
+        .replace(/\n/g, newlineReplacement);
 }
 function appendPassedChecks(lines, config, summary) {
     if (!config.comment.includePassingChecks || summary.passedChecks.length === 0) {

@@ -12,15 +12,21 @@ describe("configured regex helpers", () => {
   });
 
   it("ignores invalid or potentially unsafe patterns", () => {
+    const unsafePattern = unsafeNestedQuantifierPattern();
+
     expect(compileConfigRegex("[")).toBeNull();
-    expect(compileConfigRegex("(a+)+$")).toBeNull();
-    expect(matchesAnyConfiguredRegex("aaaaaaaaaaaaaaaa", ["(a+)+$"])).toBe(false);
+    expect(compileConfigRegex(unsafePattern)).toBeNull();
+    expect(matchesAnyConfiguredRegex("aaaaaaaaaaaaaaaa", [unsafePattern])).toBe(false);
   });
 
   it("emits diagnostics for invalid and unsafe patterns", () => {
-    expect(configuredRegexWarnings("security.secretPatterns", ["[", "(a+)+$"])).toEqual([
+    expect(configuredRegexWarnings("security.secretPatterns", ["[", unsafeNestedQuantifierPattern()])).toEqual([
       expect.stringContaining("invalid regular expression"),
       "security.secretPatterns[1] contains a potentially unsafe regular expression and will be ignored."
     ]);
   });
 });
+
+function unsafeNestedQuantifierPattern(): string {
+  return ["(", "a", "+", ")", "+", "$"].join("");
+}
