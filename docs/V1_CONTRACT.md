@@ -203,13 +203,8 @@ Policy behavior:
 Before v1 release candidates:
 
 ```bash
-npm run check
-npm run coverage
-npm run demo
-npm run evaluate
-npm run bundle
-npm pack --dry-run
-npm audit --audit-level=moderate
+npm run ci
+npm run market:check
 ```
 
 Breaking changes require a major version bump and changelog entry.

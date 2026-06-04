@@ -116,7 +116,10 @@ export async function analyzeWithAi(
     });
 
     if (!response.ok) {
-      warningSink(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
+      const detail = sanitizeAiErrorDetail(await response.text(), config.security.secretPatterns);
+      warningSink(detail
+        ? `OpenAI analysis failed with HTTP ${response.status}: ${detail}`
+        : `OpenAI analysis failed with HTTP ${response.status}.`);
       return [];
     }
 
@@ -136,9 +139,17 @@ export async function analyzeWithAi(
       .map((finding, index) => normalizeAiFinding(finding, index))
       .filter((finding): finding is Finding => Boolean(finding));
   } catch (error) {
-    warningSink(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+    warningSink(`OpenAI analysis failed: ${sanitizeAiErrorDetail(getErrorMessage(error), config.security.secretPatterns)}`);
     return [];
   }
+}
+
+function sanitizeAiErrorDetail(value: string, secretPatterns: string[]): string {
+  return truncate(redactByPatterns(value, secretPatterns).replace(/\s+/g, " ").trim(), 300);
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function redactSubject(subject: Subject, secretPatterns: string[]): Subject {

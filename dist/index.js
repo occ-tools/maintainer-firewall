@@ -45439,7 +45439,10 @@ async function analyzeWithAi(subject, config, apiKey, guidanceDocs = [], warning
             })
         });
         if (!response.ok) {
-            warningSink(`OpenAI analysis failed with HTTP ${response.status}: ${await response.text()}`);
+            const detail = sanitizeAiErrorDetail(await response.text(), config.security.secretPatterns);
+            warningSink(detail
+                ? `OpenAI analysis failed with HTTP ${response.status}: ${detail}`
+                : `OpenAI analysis failed with HTTP ${response.status}.`);
             return [];
         }
         const data = await response.json();
@@ -45457,9 +45460,15 @@ async function analyzeWithAi(subject, config, apiKey, guidanceDocs = [], warning
             .filter((finding) => Boolean(finding));
     }
     catch (error) {
-        warningSink(`OpenAI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        warningSink(`OpenAI analysis failed: ${sanitizeAiErrorDetail(ai_getErrorMessage(error), config.security.secretPatterns)}`);
         return [];
     }
+}
+function sanitizeAiErrorDetail(value, secretPatterns) {
+    return truncate(redactByPatterns(value, secretPatterns).replace(/\s+/g, " ").trim(), 300);
+}
+function ai_getErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
 }
 function redactSubject(subject, secretPatterns) {
     if (subject.kind === "issue") {

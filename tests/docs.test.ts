@@ -72,8 +72,9 @@ describe("project documentation", () => {
     expect(packageJson.scripts["release:check"]).toContain("npm run evaluate");
     expect(packageJson.scripts["release:check"]).toContain("npm run coverage");
     expect(packageJson.scripts["release:check"]).toContain("npm audit --audit-level=moderate");
-    expect(packageJson.scripts["market:check"]).toContain("npm run evaluate");
+    expect(packageJson.scripts["market:check"]).toContain("npm run ci");
     expect(packageJson.scripts["market:check"]).toContain("npm pack --dry-run");
+    expect(packageJson.scripts["market:check"]).toContain("npm audit --audit-level=moderate");
     expect(packageJson.scripts["metrics:summary"]).toContain("scripts/summarize-metrics.mjs");
     expect(packageJson.scripts["market:check"]).toContain("scripts/market-check.mjs");
 

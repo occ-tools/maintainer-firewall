@@ -266,10 +266,11 @@ describe("analyzeWithAi", () => {
 
   it("falls back cleanly when OpenAI returns an HTTP error", async () => {
     const warnings: string[] = [];
+    const secret = "sk-abc12345678901234567890";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 429,
-      text: async () => "rate limited"
+      text: async () => `rate limited ${secret}\n${"details ".repeat(80)}`
     }));
 
     await expect(analyzeWithAi(subject, {
@@ -279,7 +280,9 @@ describe("analyzeWithAi", () => {
         enabled: true
       }
     }, "test-key", [], (warning) => warnings.push(warning))).resolves.toEqual([]);
-    expect(warnings).toEqual(["OpenAI analysis failed with HTTP 429: rate limited"]);
+    expect(warnings[0]).toContain("OpenAI analysis failed with HTTP 429: rate limited [redacted]");
+    expect(warnings[0]).not.toContain(secret);
+    expect(warnings[0]?.length).toBeLessThanOrEqual(340);
   });
 
   it("falls back cleanly when OpenAI returns no text output", async () => {

@@ -21,7 +21,7 @@ GitHub Marketplace has repository-level listing requirements in addition to prod
 - License, security policy, support policy, contribution guide, and changelog are present.
 - Package dry-run contains only runtime bundle, docs, examples, schema, and required metadata.
 - `npm run check`, `npm run coverage`, `npm run demo`, `npm audit --audit-level=moderate`, and `npm pack --dry-run` pass.
-- `npm run market:check` passes.
+- `npm run market:check` passes, including CI, bundled `dist/` verification, coverage, demo, audit, package dry-run, and launch-document checks.
 - Coverage is configured to include source modules explicitly, with only the thin action entry point and type-only module excluded.
 
 Additional requirements before a direct GitHub Marketplace listing:

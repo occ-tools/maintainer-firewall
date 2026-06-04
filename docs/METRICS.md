@@ -26,7 +26,7 @@ For local aggregation, download one or more report artifacts and run:
 npm run metrics:summary -- reports/
 ```
 
-The summary script counts reports, skipped runs, outcomes, findings by ID and severity, labels, configuration warnings, and runtime warnings. It ignores effective-config JSON files.
+The summary script counts reports, skipped runs, outcomes, findings by ID and severity, labels, configuration warnings, and runtime warnings. It ignores effective-config JSON files and exits non-zero when no valid report payloads are found.
 
 ## Calibration Labels
 

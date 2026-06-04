@@ -65,6 +65,10 @@ if (!packageJson.scripts?.["metrics:summary"]?.includes("scripts/summarize-metri
   throw new Error("package.json should expose npm run metrics:summary.");
 }
 
+if (!packageJson.scripts?.["market:check"]?.includes("npm run ci")) {
+  throw new Error("package.json market:check should include npm run ci so bundled dist verification cannot be skipped.");
+}
+
 if (!marketplaceReadiness.includes("GitHub Marketplace has repository-level listing requirements")) {
   throw new Error("docs/MARKETPLACE_READINESS.md should document the direct Marketplace listing caveat.");
 }

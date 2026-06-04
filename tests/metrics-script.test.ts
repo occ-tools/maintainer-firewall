@@ -72,4 +72,24 @@ describe("metrics summary script", () => {
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("fails when JSON files exist but none are report payloads", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "maintainer-firewall-metrics-empty-"));
+
+    try {
+      await writeFile(join(tempDir, "effective-config.json"), JSON.stringify({
+        version: 1,
+        enabledChecks: {}
+      }), "utf8");
+
+      await expect(execFileAsync("node", ["scripts/summarize-metrics.mjs", tempDir], {
+        cwd: process.cwd()
+      })).rejects.toMatchObject({
+        stdout: expect.stringContaining('"reports": 0'),
+        stderr: expect.stringContaining("No valid Maintainer Firewall report JSON files found.")
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });

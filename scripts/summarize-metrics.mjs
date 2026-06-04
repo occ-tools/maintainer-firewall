@@ -14,6 +14,10 @@ if (inputs.length === 0) {
   } else {
     const summary = summarizeReports(files);
     console.log(JSON.stringify(summary, null, 2));
+    if (summary.reports === 0) {
+      console.error("No valid Maintainer Firewall report JSON files found.");
+      process.exitCode = 1;
+    }
   }
 }
 

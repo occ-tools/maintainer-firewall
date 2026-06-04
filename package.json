@@ -25,7 +25,7 @@
     "evaluate:ai": "npm run build && node scripts/evaluate-ai.mjs",
     "metrics:summary": "node scripts/summarize-metrics.mjs",
     "coverage": "vitest run --coverage",
-    "market:check": "npm run check && npm run coverage && npm run demo && npm run evaluate && npm audit --audit-level=moderate && npm pack --dry-run && node scripts/market-check.mjs",
+    "market:check": "npm run ci && npm run coverage && npm run demo && npm audit --audit-level=moderate && npm pack --dry-run && node scripts/market-check.mjs",
     "release:check": "npm run check && npm run coverage && npm run demo && npm run evaluate && npm run verify:dist && npm audit --audit-level=moderate",
     "verify:dist": "npm run bundle && git diff --exit-code -- dist",
     "test": "vitest run",

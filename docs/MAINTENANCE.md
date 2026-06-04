@@ -20,7 +20,7 @@ Use these checks by default:
 
 `npm run ci` runs the TypeScript build, test suite, deterministic evaluation fixtures, and bundled `dist/` verification.
 `npm run release:check` adds coverage thresholds, the demo run, bundled `dist/` verification, and moderate-severity dependency audit.
-`npm run market:check` runs local market-readiness checks, including package dry-run contents and required launch docs.
+`npm run market:check` runs the full local market-readiness gate: CI, coverage, demo, audit, package dry-run contents, and required launch docs.
 `npm run evaluate` runs deterministic product fixtures without calling OpenAI.
 `npm run evaluate:ai` is an explicit live OpenAI smoke test and is not part of CI.
 `npm run bundle` updates the committed action bundle after runtime source changes.
