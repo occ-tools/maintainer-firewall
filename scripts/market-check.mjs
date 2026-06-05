@@ -22,7 +22,9 @@ const requiredFiles = [
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const readme = readFileSync("README.md", "utf8");
 const metricsWorkflow = readFileSync("examples/workflow.metrics.yml", "utf8");
+const maintenanceGuide = readFileSync("docs/MAINTENANCE.md", "utf8");
 const marketplaceReadiness = readFileSync("docs/MARKETPLACE_READINESS.md", "utf8");
+const releaseWorkflow = readFileSync(".github/workflows/release.yml", "utf8");
 const vitestConfig = readFileSync("vitest.config.ts", "utf8");
 
 for (const file of requiredFiles) {
@@ -80,6 +82,24 @@ if (metricsWorkflow.includes("actions/upload-artifact@v4")) {
 
 if (!metricsWorkflow.includes("actions/upload-artifact@v7")) {
   throw new Error("examples/workflow.metrics.yml should include the current upload-artifact example.");
+}
+
+for (const requiredReleaseWorkflowText of [
+  "attestations: write",
+  "actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26",
+  "release-assets/*.tgz"
+]) {
+  if (!releaseWorkflow.includes(requiredReleaseWorkflowText)) {
+    throw new Error(`.github/workflows/release.yml should include ${requiredReleaseWorkflowText}.`);
+  }
+}
+
+if (!maintenanceGuide.includes("gh attestation verify")) {
+  throw new Error("docs/MAINTENANCE.md should document release asset attestation verification.");
+}
+
+if (!marketplaceReadiness.includes("GitHub artifact attestations")) {
+  throw new Error("docs/MARKETPLACE_READINESS.md should include release attestation readiness.");
 }
 
 for (const fixture of [

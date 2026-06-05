@@ -56,8 +56,15 @@ Before tagging:
 5. Push `main` and the tag together.
 6. Confirm the GitHub release exists and is not a draft.
 7. Confirm the tag-triggered Release workflow and the push-triggered Test and CodeQL workflows all complete successfully.
+8. Confirm the release includes the packed `.tgz` asset and a GitHub artifact attestation for that asset.
 
 If release automation fails, fix the underlying issue and rerun from the same tag only when the release artifact is still correct. Prefer a new patch tag when the published release content changed.
+
+To verify a downloaded release asset:
+
+```bash
+gh attestation verify maintainer-firewall-<version>.tgz -R wangjiehu/maintainer-firewall
+```
 
 ## Dependency Maintenance
 
