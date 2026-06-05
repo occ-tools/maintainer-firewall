@@ -4,7 +4,7 @@ Maintainer Firewall helps route security-sensitive reports, but it is not a secr
 
 ## Reporting a Vulnerability
 
-Please do not open a public issue for a vulnerability in this project. Use GitHub private vulnerability reporting if it is enabled, or contact the maintainers through the security contact listed by the repository owner.
+Please do not open a public issue for a vulnerability in this project. Use [GitHub private vulnerability reporting](https://github.com/wangjiehu/maintainer-firewall/security/advisories/new) if it is enabled, or contact the maintainers through the security contact listed by the repository owner.
 
 If you believe Maintainer Firewall exposed or mishandled a credential-like value, include:
 
