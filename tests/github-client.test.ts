@@ -492,10 +492,10 @@ describe("getConfigRef", () => {
     } as never)).toBe("main");
     expect(getConfigRef({
       eventName: "push",
-      ref: "refs/tags/v0.6.0",
+      ref: "refs/tags/v0.7.0",
       repo: { owner: "octo", repo: "repo" },
       payload: {}
-    } as never)).toBe("v0.6.0");
+    } as never)).toBe("v0.7.0");
   });
 
   it("returns undefined when no ref is available", () => {

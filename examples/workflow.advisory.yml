@@ -20,6 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Copy examples/config.quiet.yml to .maintainer-firewall.yml for comment-only rollout.
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

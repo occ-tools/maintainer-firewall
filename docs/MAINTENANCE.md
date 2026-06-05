@@ -52,7 +52,7 @@ Before tagging:
 1. Confirm `main` is clean and the latest Test, Release, and CodeQL runs are green.
 2. Update `package.json`, `package-lock.json`, `CHANGELOG.md`, README release commands, examples, and docs that mention the release tag.
 3. Run `npm run release:check`.
-4. Create the tag, for example `git tag v0.6.0`.
+4. Create the tag, for example `git tag v0.7.0`.
 5. Push `main` and the tag together.
 6. Confirm the GitHub release exists and is not a draft.
 7. Confirm the tag-triggered Release workflow and the push-triggered Test and CodeQL workflows all complete successfully.

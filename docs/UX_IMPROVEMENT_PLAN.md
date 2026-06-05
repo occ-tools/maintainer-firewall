@@ -1,8 +1,8 @@
 # User Experience Improvement Plan
 
-Status: approved direction; Phase 0, Phase 1, part of Phase 2, and the highest-value calibration controls are implemented in v0.6.0.
+Status: approved direction; Phase 0, Phase 1, part of Phase 2, and the highest-value calibration controls are implemented in v0.7.0.
 
-Baseline: Maintainer Firewall v0.6.0 already supports low-noise triage reports, labels, setup-state step summaries, structured JSON reports with configuration and runtime diagnostics, redacted effective-config reports, optional workflow annotations, CODEOWNERS routing hints, configuration schema guidance, stable finding IDs, focused onboarding docs, exact finding-ID suppression, exact finding-ID severity overrides, warning outputs, deterministic evaluation fixtures, metrics workflow examples, and optional AI-assisted semantic review.
+Baseline: Maintainer Firewall v0.7.0 already supports low-noise triage reports, labels, setup-state step summaries, structured JSON reports with configuration and runtime diagnostics, redacted effective-config reports, optional workflow annotations, CODEOWNERS routing hints, configuration schema guidance, stable finding IDs, focused onboarding docs, exact finding-ID suppression, exact finding-ID severity overrides, warning outputs, deterministic evaluation fixtures, metrics workflow examples, and optional AI-assisted semantic review.
 
 ## Objective
 

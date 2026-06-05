@@ -131,7 +131,7 @@ describe("project documentation", () => {
     const surface = fieldById(featureRequest, "surface");
     const tradeoffs = fieldById(featureRequest, "tradeoffs");
 
-    expect(version.attributes?.placeholder).toContain("v0.6.0");
+    expect(version.attributes?.placeholder).toContain("v0.7.0");
     expect(logs.attributes?.description).toContain("runtime warnings");
     expect(surface.attributes?.options).toContain("Maintenance or release workflow");
     expect(tradeoffs.validations?.required).toBe(true);
@@ -146,7 +146,7 @@ describe("project documentation", () => {
       "examples/workflow.strict.yml",
       "examples/workflow.metrics.yml"
     ]) {
-      expect(readFileSync(path, "utf8")).toContain("wangjiehu/maintainer-firewall@v0.6.0");
+      expect(readFileSync(path, "utf8")).toContain("wangjiehu/maintainer-firewall@v0.7.0");
     }
   });
 

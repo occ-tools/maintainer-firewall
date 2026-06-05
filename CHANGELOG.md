@@ -2,6 +2,16 @@
 
 All notable changes to Maintainer Firewall will be documented in this file.
 
+## 0.7.0 - Market Readiness Hardening
+
+- Adds V1 contract, market-readiness, adoption, pilot, metrics, evaluation, and AI data-boundary documentation.
+- Adds deterministic evaluation fixtures, optional live AI evaluation, metrics aggregation, and a stronger `market:check` gate that includes bundled `dist/` verification.
+- Adds effective-config JSON reporting so rollout teams can inspect redacted active settings without reading source code.
+- Adds library, monorepo, security-sensitive, and metrics workflow examples.
+- Adds OpenSSF Scorecard workflow and CODEOWNERS coverage for release-sensitive surfaces.
+- Hardens configured regex handling, AI warning redaction, markdown table escaping, duplicate matching, and report references.
+- Tightens workflow permissions and security policy links based on Scorecard feedback.
+
 ## 0.6.0 - Runtime Diagnostics Visibility
 
 - Captures runtime warnings from AI fallback, repository guidance loading, CODEOWNERS loading, GitHub write operations, comment lookups, JSON report writes, and step-summary writes.

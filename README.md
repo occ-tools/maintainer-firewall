@@ -84,7 +84,7 @@ jobs:
   firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -105,7 +105,7 @@ The `labeled` and `unlabeled` events let ignore labels such as `skip-firewall` a
 Set `report-json-path` when another workflow step should consume a structured report:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           report-json-path: maintainer-firewall-report.json
@@ -114,7 +114,7 @@ Set `report-json-path` when another workflow step should consume a structured re
 Set `effective-config-json-path` during rollout when you want a redacted JSON snapshot of active thresholds, labels, rule policy, diagnostics, and enabled surfaces:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           effective-config-json-path: maintainer-firewall-effective-config.json
@@ -137,7 +137,7 @@ Do not combine `pull_request_target`, write permissions, and a checkout of untru
 Maintainer Firewall works without an OpenAI API key. To enable AI-assisted semantic checks, set `ai.enabled: true` in `.maintainer-firewall.yml` and pass an API key:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -152,7 +152,7 @@ When AI analysis is enabled, Maintainer Firewall also loads configured repositor
 Start in dry-run mode if you want to inspect reports without writing comments or labels:
 
 ```yaml
-      - uses: wangjiehu/maintainer-firewall@v0.6.0
+      - uses: wangjiehu/maintainer-firewall@v0.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dry-run: true
@@ -237,8 +237,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internal flow and saf
 
 ```bash
 npm run release:check
-git tag v0.6.0
-git push origin main v0.6.0
+git tag v0.7.0
+git push origin main v0.7.0
 ```
 
 The release workflow publishes GitHub release notes for `v*` tags.
