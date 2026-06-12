@@ -45178,6 +45178,17 @@ function diagnosticOutputValues(diagnostics) {
     };
 }
 
+;// CONCATENATED MODULE: ./src/errors.ts
+function getErrorStatus(error) {
+    if (typeof error === "object" && error && "status" in error) {
+        return Number(error.status);
+    }
+    return undefined;
+}
+function getErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+
 ;// CONCATENATED MODULE: ./src/text.ts
 const STOP_WORDS = new Set([
     "a",
@@ -45240,6 +45251,7 @@ function truncate(value, maxCharacters) {
 }
 
 ;// CONCATENATED MODULE: ./src/guidance.ts
+
 
 
 const GUIDANCE_FILE_PATTERN = /\.(md|mdx|txt|ya?ml)$/i;
@@ -45323,17 +45335,9 @@ async function loadGuidancePath(octokit, owner, repo, ref, path, warningSink) {
         return [];
     }
 }
-function getErrorStatus(error) {
-    if (typeof error === "object" && error && "status" in error) {
-        return Number(error.status);
-    }
-    return undefined;
-}
-function getErrorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
-}
 
 ;// CONCATENATED MODULE: ./src/ai.ts
+
 
 
 
@@ -45460,15 +45464,12 @@ async function analyzeWithAi(subject, config, apiKey, guidanceDocs = [], warning
             .filter((finding) => Boolean(finding));
     }
     catch (error) {
-        warningSink(`OpenAI analysis failed: ${sanitizeAiErrorDetail(ai_getErrorMessage(error), config.security.secretPatterns)}`);
+        warningSink(`OpenAI analysis failed: ${sanitizeAiErrorDetail(getErrorMessage(error), config.security.secretPatterns)}`);
         return [];
     }
 }
 function sanitizeAiErrorDetail(value, secretPatterns) {
     return truncate(redactByPatterns(value, secretPatterns).replace(/\s+/g, " ").trim(), 300);
-}
-function ai_getErrorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 function redactSubject(subject, secretPatterns) {
     if (subject.kind === "issue") {
@@ -48062,6 +48063,7 @@ minimatch.unescape = unescape_unescape;
 ;// CONCATENATED MODULE: ./src/codeowners.ts
 
 
+
 async function loadCodeOwnerHints(octokit, owner, repo, ref, config, subject, warningSink = (message) => core_warning(message)) {
     const content = await loadFirstCodeOwnersFile(octokit, owner, repo, ref, config.repository.codeOwnersPaths, warningSink);
     if (!content) {
@@ -48131,9 +48133,9 @@ async function loadFirstCodeOwnersFile(octokit, owner, repo, ref, paths, warning
             }
         }
         catch (error) {
-            const status = codeowners_getErrorStatus(error);
+            const status = getErrorStatus(error);
             if (status !== 404) {
-                warningSink(`Failed to load CODEOWNERS from ${path}: ${codeowners_getErrorMessage(error)}`);
+                warningSink(`Failed to load CODEOWNERS from ${path}: ${getErrorMessage(error)}`);
             }
         }
     }
@@ -48165,15 +48167,6 @@ function expandCodeOwnerPattern(pattern) {
         withoutTrailingSlash,
         `${withoutTrailingSlash}/**`
     ];
-}
-function codeowners_getErrorStatus(error) {
-    if (typeof error === "object" && error && "status" in error) {
-        return Number(error.status);
-    }
-    return undefined;
-}
-function codeowners_getErrorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 
 ;// CONCATENATED MODULE: ./src/labels.ts
@@ -48538,6 +48531,7 @@ var yaml_dist = __nccwpck_require__(8815);
 ;// CONCATENATED MODULE: ./src/config.ts
 
 
+
 const MINIMUM_VALUES = {
     "config.issue.minBodyCharacters": 0,
     "config.issue.duplicateSearchLimit": 0,
@@ -48715,7 +48709,7 @@ async function loadConfigWithDiagnostics(octokit, owner, repo, path, ref) {
         };
     }
     catch (error) {
-        const status = config_getErrorStatus(error);
+        const status = getErrorStatus(error);
         if (status === 404) {
             info(`No ${path} found. Using default Maintainer Firewall config.`);
             return {
@@ -48725,7 +48719,7 @@ async function loadConfigWithDiagnostics(octokit, owner, repo, path, ref) {
         }
         return {
             config: defaultConfig,
-            warnings: [`Failed to load ${path}: ${config_getErrorMessage(error)}. Using defaults.`]
+            warnings: [`Failed to load ${path}: ${getErrorMessage(error)}. Using defaults.`]
         };
     }
 }
@@ -48811,12 +48805,7 @@ function normalizeConfig(config) {
             reportPatterns: config.security.reportPatterns ?? [],
             secretPatterns: config.security.secretPatterns ?? []
         },
-        labeling: {
-            ...config.labeling,
-            enabled: config.labeling.enabled,
-            createMissing: config.labeling.createMissing,
-            removeStale: config.labeling.removeStale
-        },
+        labeling: config.labeling,
         comment: {
             ...config.comment,
             postWhen: isKnownPostWhen(config.comment.postWhen) ? config.comment.postWhen : "findings",
@@ -48877,15 +48866,6 @@ function deepMerge(base, override) {
 }
 function config_isPlainObject(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-function config_getErrorStatus(error) {
-    if (typeof error === "object" && error && "status" in error) {
-        return Number(error.status);
-    }
-    return undefined;
-}
-function config_getErrorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 function isKnownPostWhen(value) {
     return value === "always" || value === "findings" || value === "never";
@@ -49181,12 +49161,6 @@ function createRuntimeWarningSink(diagnostics, config) {
         core_warning(redacted);
     };
 }
-function setDiagnosticOutputs(diagnostics) {
-    core.setOutput("config-warnings-count", String(diagnostics.configWarnings.length));
-    core.setOutput("config-warnings", JSON.stringify(diagnostics.configWarnings));
-    core.setOutput("runtime-warnings-count", String(diagnostics.runtimeWarnings.length));
-    core.setOutput("runtime-warnings", JSON.stringify(diagnostics.runtimeWarnings));
-}
 
 ;// CONCATENATED MODULE: ./src/rules.ts
 
@@ -49449,6 +49423,7 @@ function matchesAnyRegex(value, patterns) {
 ;// CONCATENATED MODULE: ./src/github-client.ts
 
 
+
 const REPORT_MARKER = "<!-- maintainer-firewall:report -->";
 const defaultWarningSink = (message) => core_warning(message);
 async function buildSubject(octokit, context, duplicateSearchLimit, warningSink = defaultWarningSink) {
@@ -49508,7 +49483,7 @@ async function listPullRequestFiles(octokit, owner, repo, pullNumber, warningSin
         }));
     }
     catch (error) {
-        warningSink(`Could not list files for pull request #${pullNumber}: ${github_client_getErrorMessage(error)}. Continuing with title and body checks only.`);
+        warningSink(`Could not list files for pull request #${pullNumber}: ${getErrorMessage(error)}. Continuing with title and body checks only.`);
         return [];
     }
 }
@@ -49548,7 +49523,7 @@ async function removeLabels(octokit, owner, repo, issueNumber, labels) {
             });
         }
         catch (error) {
-            const status = github_client_getErrorStatus(error);
+            const status = getErrorStatus(error);
             if (status !== 404) {
                 throw error;
             }
@@ -49587,7 +49562,7 @@ async function hasReportComment(octokit, owner, repo, issueNumber, warningSink =
         return Boolean(await findReportComment(octokit, owner, repo, issueNumber));
     }
     catch (error) {
-        warningSink(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${github_client_getErrorMessage(error)}.`);
+        warningSink(`Could not check for an existing Maintainer Firewall report on #${issueNumber}: ${getErrorMessage(error)}.`);
         return false;
     }
 }
@@ -49647,7 +49622,7 @@ async function ensureLabels(octokit, owner, repo, labels) {
             await octokit.rest.issues.getLabel({ owner, repo, name: label });
         }
         catch (error) {
-            const status = github_client_getErrorStatus(error);
+            const status = getErrorStatus(error);
             if (status !== 404) {
                 throw error;
             }
@@ -49661,7 +49636,7 @@ async function ensureLabels(octokit, owner, repo, labels) {
                 });
             }
             catch (createError) {
-                const createStatus = github_client_getErrorStatus(createError);
+                const createStatus = getErrorStatus(createError);
                 if (createStatus !== 422) {
                     throw createError;
                 }
@@ -49706,15 +49681,6 @@ function isIssuePayload(payload) {
 }
 function isPullRequestPayload(payload) {
     return Boolean(payload.pull_request && typeof payload.pull_request === "object");
-}
-function github_client_getErrorStatus(error) {
-    if (typeof error === "object" && error && "status" in error) {
-        return Number(error.status);
-    }
-    return undefined;
-}
-function github_client_getErrorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 
 ;// CONCATENATED MODULE: ./src/index.ts
@@ -49852,7 +49818,6 @@ async function run() {
         : [];
     const summary = createReviewSummary(subject, findings, config, routingHints);
     const report = composeReport(subject, findings, config, summary);
-    setCompletedOutputs(summary, findings, reportJsonPath, effectiveConfigJsonPath, diagnostics, config);
     if (emitAnnotations) {
         emitFindingAnnotations(findings, config);
     }

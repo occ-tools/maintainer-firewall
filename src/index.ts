@@ -196,7 +196,6 @@ async function run(): Promise<void> {
   const summary = createReviewSummary(subject, findings, config, routingHints);
   const report = composeReport(subject, findings, config, summary);
 
-  setCompletedOutputs(summary, findings, reportJsonPath, effectiveConfigJsonPath, diagnostics, config);
   if (emitAnnotations) {
     emitFindingAnnotations(findings, config);
   }

@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { minimatch } from "minimatch";
 import type * as github from "@actions/github";
+import { getErrorMessage, getErrorStatus } from "./errors.js";
 import type { FirewallConfig, PullRequestSubject, RoutingHint } from "./types.js";
 import type { RuntimeWarningSink } from "./run-diagnostics.js";
 
@@ -147,14 +148,4 @@ function expandCodeOwnerPattern(pattern: string): string[] {
   ];
 }
 
-function getErrorStatus(error: unknown): number | undefined {
-  if (typeof error === "object" && error && "status" in error) {
-    return Number((error as { status?: unknown }).status);
-  }
 
-  return undefined;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

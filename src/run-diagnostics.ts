@@ -27,9 +27,3 @@ export function createRuntimeWarningSink(
   };
 }
 
-export function setDiagnosticOutputs(diagnostics: RunDiagnostics): void {
-  core.setOutput("config-warnings-count", String(diagnostics.configWarnings.length));
-  core.setOutput("config-warnings", JSON.stringify(diagnostics.configWarnings));
-  core.setOutput("runtime-warnings-count", String(diagnostics.runtimeWarnings.length));
-  core.setOutput("runtime-warnings", JSON.stringify(diagnostics.runtimeWarnings));
-}

@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { getErrorMessage } from "./errors.js";
 import type { Finding, FirewallConfig, LabelKey, RepositoryGuidanceDoc, Subject } from "./types.js";
 import { summarizeGuidanceForPrompt } from "./guidance.js";
 import { redactByPatterns } from "./redaction.js";
@@ -148,9 +149,7 @@ function sanitizeAiErrorDetail(value: string, secretPatterns: string[]): string 
   return truncate(redactByPatterns(value, secretPatterns).replace(/\s+/g, " ").trim(), 300);
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+
 
 function redactSubject(subject: Subject, secretPatterns: string[]): Subject {
   if (subject.kind === "issue") {

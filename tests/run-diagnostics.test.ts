@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultConfig } from "../src/config.js";
 import {
   createRunDiagnostics,
-  createRuntimeWarningSink,
-  setDiagnosticOutputs
+  createRuntimeWarningSink
 } from "../src/run-diagnostics.js";
 
 vi.mock("@actions/core", () => ({
@@ -26,19 +25,5 @@ describe("run diagnostics", () => {
 
     expect(diagnostics.runtimeWarnings).toEqual(["Could not apply labels: [redacted]"]);
     expect(core.warning).toHaveBeenCalledWith("Could not apply labels: [redacted]");
-  });
-
-  it("sets configuration and runtime diagnostic outputs together", () => {
-    const diagnostics = {
-      configWarnings: ["config warning"],
-      runtimeWarnings: ["runtime warning"]
-    };
-
-    setDiagnosticOutputs(diagnostics);
-
-    expect(core.setOutput).toHaveBeenCalledWith("config-warnings-count", "1");
-    expect(core.setOutput).toHaveBeenCalledWith("config-warnings", JSON.stringify(["config warning"]));
-    expect(core.setOutput).toHaveBeenCalledWith("runtime-warnings-count", "1");
-    expect(core.setOutput).toHaveBeenCalledWith("runtime-warnings", JSON.stringify(["runtime warning"]));
   });
 });

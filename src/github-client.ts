@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import type * as github from "@actions/github";
+import { getErrorMessage, getErrorStatus } from "./errors.js";
 import type {
   ChangedFile,
   DuplicateCandidate,
@@ -394,14 +395,4 @@ function isPullRequestPayload(payload: Record<string, unknown>): payload is {
   return Boolean(payload.pull_request && typeof payload.pull_request === "object");
 }
 
-function getErrorStatus(error: unknown): number | undefined {
-  if (typeof error === "object" && error && "status" in error) {
-    return Number((error as { status?: unknown }).status);
-  }
 
-  return undefined;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

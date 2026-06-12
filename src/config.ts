@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { parse } from "yaml";
 import type * as github from "@actions/github";
+import { getErrorMessage, getErrorStatus } from "./errors.js";
 import type { FirewallConfig } from "./types.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -322,12 +323,7 @@ function normalizeConfig(config: FirewallConfig): FirewallConfig {
       reportPatterns: config.security.reportPatterns ?? [],
       secretPatterns: config.security.secretPatterns ?? []
     },
-    labeling: {
-      ...config.labeling,
-      enabled: config.labeling.enabled,
-      createMissing: config.labeling.createMissing,
-      removeStale: config.labeling.removeStale
-    },
+    labeling: config.labeling,
     comment: {
       ...config.comment,
       postWhen: isKnownPostWhen(config.comment.postWhen) ? config.comment.postWhen : "findings",
@@ -399,18 +395,6 @@ function deepMerge<T>(base: T, override: unknown): T {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function getErrorStatus(error: unknown): number | undefined {
-  if (typeof error === "object" && error && "status" in error) {
-    return Number((error as { status?: unknown }).status);
-  }
-
-  return undefined;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function isKnownPostWhen(value: unknown): value is FirewallConfig["comment"]["postWhen"] {
