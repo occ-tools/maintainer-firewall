@@ -26,6 +26,10 @@ To dive deeper into specific areas of the firewall, check out the dedicated guid
 *   **[V1 API Contract](docs/V1_CONTRACT.md)** — Stable input/output definitions, JSON report shapes, and compatibility policy.
 *   **[Marketplace Readiness](docs/MARKETPLACE_READINESS.md)** — Public beta checklists, security scanning, packaging, and listing rules.
 *   **[Adoption Playbook](docs/ADOPTION_PLAYBOOK.md)** — Running pilots with design partners, collecting metrics, and templates.
+*   **[Pilot Runbook](docs/PILOT_RUNBOOK.md)** — Step-by-step instructions for running a first audit-mode pilot in a real repository.
+*   **[Evaluation Guide](docs/EVALUATION.md)** — How to run and interpret deterministic evaluation fixtures and rule coverage reports.
+*   **[AI Data Boundary](docs/AI_DATA_BOUNDARY.md)** — What data is sent to OpenAI, redaction guarantees, and opt-out instructions.
+*   **[Metrics](docs/METRICS.md)** — Available metrics outputs, the workflow example, and how to aggregate run reports.
 
 ---
 
